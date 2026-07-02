@@ -882,7 +882,7 @@ class SklearnModel:
         return pd.DataFrame(
             index=X.index,
             data=self.predict_numpy(X.values),
-            columns=self.targets,
+            columns=self.targets,  # type: ignore[arg-type]
         )
 
     def predict_numpy(self, X: np.ndarray) -> np.ndarray:
