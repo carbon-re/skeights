@@ -1,4 +1,4 @@
-"""MLP regressor and classifier round-trip tests."""
+"""MLP regressor and classifier tests."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import numpy as np
 import pytest
 from sklearn import pipeline, preprocessing
 from sklearn.neural_network import MLPClassifier, MLPRegressor
+
+from skeights._core import _arrays_from_estimator, _collect_fitted_state
 
 from .conftest import round_trip
 
@@ -48,3 +50,25 @@ def test_mlp_classifier_round_trip(binary_data):
     np.testing.assert_allclose(
         model.predict_proba(X), restored.predict_proba(X), atol=1e-10
     )
+
+
+def test_mlp_arrays_contain_layer_weights(regression_data):
+    X, y = regression_data
+    model = MLPRegressor(hidden_layer_sizes=(4, 3), random_state=0, max_iter=1)
+    model.fit(X, y["y"])
+    arrays = _arrays_from_estimator(model)
+    assert "coefs_0" in arrays
+    assert "coefs_1" in arrays
+    assert "intercepts_0" in arrays
+    assert "intercepts_1" in arrays
+    assert arrays["coefs_0"].shape == (2, 4)
+    assert arrays["coefs_1"].shape == (4, 3)
+
+
+def test_mlp_fitted_state_contains_layer_info(regression_data):
+    X, y = regression_data
+    model = MLPRegressor(hidden_layer_sizes=(4,), random_state=0, max_iter=1)
+    model.fit(X, y["y"])
+    fitted = _collect_fitted_state(model)
+    assert "n_layers_" in fitted
+    assert "out_activation_" in fitted

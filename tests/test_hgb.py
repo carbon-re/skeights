@@ -1,10 +1,12 @@
-"""HistGradientBoosting round-trip tests."""
+"""HistGradientBoosting tests."""
 
 from __future__ import annotations
 
 import numpy as np
 import pandas as pd
 from sklearn import ensemble
+
+from skeights._core import _arrays_from_estimator
 
 from .conftest import round_trip
 
@@ -29,3 +31,14 @@ def test_hgb_classifier_round_trip(binary_data):
     np.testing.assert_allclose(
         model.predict_proba(X), restored.predict_proba(X), atol=1e-10
     )
+
+
+def test_hgb_arrays_contain_predictors_and_bin_mapper(regression_data):
+    X, y = regression_data
+    model = ensemble.HistGradientBoostingRegressor(max_iter=3, random_state=0)
+    model.fit(X, y["y"])
+    arrays = _arrays_from_estimator(model)
+    assert "_baseline_prediction" in arrays
+    assert "_bin_mapper/bin_thresholds_0" in arrays
+    assert "_bin_mapper/is_categorical_" in arrays
+    assert "_predictors/0/0/nodes_value" in arrays

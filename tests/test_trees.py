@@ -1,4 +1,4 @@
-"""DecisionTree, RandomForest, and GradientBoosting round-trip tests."""
+"""DecisionTree, RandomForest, and GradientBoosting tests."""
 
 from __future__ import annotations
 
@@ -6,6 +6,8 @@ import numpy as np
 import pytest
 from sklearn import ensemble
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+
+from skeights._core import _arrays_from_estimator, _collect_fitted_state
 
 from .conftest import round_trip
 
@@ -60,3 +62,32 @@ def test_gradient_boosting_round_trip(estimator, regression_data, binary_data):
     estimator.fit(X, y.iloc[:, 0])
     restored = round_trip(estimator)
     np.testing.assert_allclose(estimator.predict(X), restored.predict(X), atol=1e-10)
+
+
+def test_rf_arrays_contain_tree_nodes(regression_data):
+    X, y = regression_data
+    model = ensemble.RandomForestRegressor(n_estimators=3, max_depth=2, random_state=0)
+    model.fit(X, y["y"])
+    arrays = _arrays_from_estimator(model)
+    assert "_trees/0/values" in arrays
+    assert "_trees/1/values" in arrays
+    assert "_trees/2/values" in arrays
+    assert any("nodes_" in k for k in arrays)
+
+
+def test_rf_state_contains_tree_count(regression_data):
+    X, y = regression_data
+    model = ensemble.RandomForestRegressor(n_estimators=3, max_depth=2, random_state=0)
+    model.fit(X, y["y"])
+    assert _collect_fitted_state(model)["n_trees"] == 3
+
+
+def test_gb_state_contains_init_type(regression_data):
+    X, y = regression_data
+    model = ensemble.GradientBoostingRegressor(
+        n_estimators=3, max_depth=2, random_state=0
+    )
+    model.fit(X, y["y"])
+    fitted = _collect_fitted_state(model)
+    assert "_init/type" in fitted
+    assert "DummyRegressor" in fitted["_init/type"]
