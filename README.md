@@ -60,11 +60,12 @@ predictions = loaded.predict(X_test)
 ## Supported estimators
 
 - **Linear models**: Ridge, Lasso, LinearRegression, LogisticRegression, etc.
-- **MLPRegressor**: multi-layer perceptron
-- **GaussianProcessRegressor / Classifier**: including composite kernels
+- **MLPRegressor / Classifier**: multi-layer perceptron
+- **DecisionTreeRegressor / Classifier**: full tree serialization
 - **RandomForestRegressor / Classifier**: full tree serialization
 - **GradientBoostingRegressor / Classifier**: including init estimator
 - **HistGradientBoostingRegressor / Classifier**: including bin mapper state
+- **GaussianProcessRegressor / Classifier**: including composite kernels
 - **TransformedTargetRegressor**: target scaling wrappers
 - **Scalers**: StandardScaler, MinMaxScaler, RobustScaler
 - **Pipelines**: any Pipeline composed of supported estimators
