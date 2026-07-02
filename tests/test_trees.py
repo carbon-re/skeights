@@ -7,9 +7,7 @@ import pytest
 from sklearn import ensemble
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
-from skeights import SklearnModel
-
-from .conftest import _round_trip
+from .conftest import round_trip
 
 
 @pytest.mark.parametrize(
@@ -24,10 +22,10 @@ def test_decision_tree_round_trip(
     estimator, use_regression, regression_data, binary_data
 ):
     X, y = regression_data if use_regression else binary_data
-    model = SklearnModel(estimator)
-    model.fit(X, y)
-    restored = _round_trip(model)
-    np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
+    target = y.iloc[:, 0]
+    estimator.fit(X, target)
+    restored = round_trip(estimator)
+    np.testing.assert_allclose(estimator.predict(X), restored.predict(X), atol=1e-10)
 
 
 @pytest.mark.parametrize(
@@ -41,10 +39,9 @@ def test_decision_tree_round_trip(
 def test_random_forest_round_trip(estimator, regression_data, binary_data):
     is_clf = isinstance(estimator, ensemble.RandomForestClassifier)
     X, y = binary_data if is_clf else regression_data
-    model = SklearnModel(estimator)
-    model.fit(X, y)
-    restored = _round_trip(model)
-    np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
+    estimator.fit(X, y.iloc[:, 0])
+    restored = round_trip(estimator)
+    np.testing.assert_allclose(estimator.predict(X), restored.predict(X), atol=1e-10)
 
 
 @pytest.mark.parametrize(
@@ -60,7 +57,6 @@ def test_random_forest_round_trip(estimator, regression_data, binary_data):
 def test_gradient_boosting_round_trip(estimator, regression_data, binary_data):
     is_clf = isinstance(estimator, ensemble.GradientBoostingClassifier)
     X, y = binary_data if is_clf else regression_data
-    model = SklearnModel(estimator)
-    model.fit(X, y)
-    restored = _round_trip(model)
-    np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
+    estimator.fit(X, y.iloc[:, 0])
+    restored = round_trip(estimator)
+    np.testing.assert_allclose(estimator.predict(X), restored.predict(X), atol=1e-10)

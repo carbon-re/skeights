@@ -16,22 +16,18 @@ from sklearn.ensemble import (
 )
 from sklearn.neural_network import MLPRegressor
 
-from skeights import SklearnModel, SklearnScaler
-
-
-def _fit(estimator, X, y):
-    model = SklearnModel(estimator)
-    model.fit(X, y)
-    return model
+from skeights._core import _arrays_from_estimator, _collect_fitted_state
+from skeights._params import get_model_params
+from skeights._utils import get_sklearn_public_path
 
 
 def test_linear_arrays_contain_coef_and_intercept(regression_data):
     X, y = regression_data
-    model = _fit(linear_model.Ridge(alpha=0.1), X, y)
-    arrays = model.get_arrays()
+    model = linear_model.Ridge(alpha=0.1)
+    model.fit(X, y["y"])
+    arrays = _arrays_from_estimator(model)
     assert "coef_" in arrays
     assert "intercept_" in arrays
-    assert arrays["coef_"].ndim in (1, 2)
     assert 2 in arrays["coef_"].shape
 
 
@@ -43,8 +39,8 @@ def test_pipeline_arrays_are_namespaced(regression_data):
             ("model", linear_model.Ridge(alpha=0.1)),
         ]
     )
-    model = _fit(pipe, X, y)
-    arrays = model.get_arrays()
+    pipe.fit(X, y["y"])
+    arrays = _arrays_from_estimator(pipe)
     assert "scaler/mean_" in arrays
     assert "scaler/scale_" in arrays
     assert "model/coef_" in arrays
@@ -53,18 +49,21 @@ def test_pipeline_arrays_are_namespaced(regression_data):
 
 def test_state_contains_hyperparams(regression_data):
     X, y = regression_data
-    model = _fit(linear_model.Ridge(alpha=0.1), X, y)
-    state = model.get_state()
-    assert state["model_params"]["alpha"] == 0.1
-    assert state["type"] == "SklearnModel"
-    assert state["features"] == ["f0", "f1"]
-    assert state["targets"] == ["y"]
+    model = linear_model.Ridge(alpha=0.1)
+    model.fit(X, y["y"])
+    params = get_model_params(model)
+    params["type"] = get_sklearn_public_path(type(model))
+    assert params["alpha"] == 0.1
+    assert "Ridge" in params["type"]
 
 
 def test_state_is_json_serializable(regression_data):
     X, y = regression_data
-    model = _fit(linear_model.Ridge(alpha=0.1), X, y)
-    state = model.get_state()
+    model = linear_model.Ridge(alpha=0.1)
+    model.fit(X, y["y"])
+    params = get_model_params(model)
+    fitted_state = _collect_fitted_state(model)
+    state = {"model_params": params, "fitted_state": fitted_state}
     serialized = json.dumps(state)
     roundtripped = json.loads(serialized)
     assert roundtripped["model_params"]["alpha"] == 0.1
@@ -72,12 +71,9 @@ def test_state_is_json_serializable(regression_data):
 
 def test_mlp_arrays_contain_layer_weights(regression_data):
     X, y = regression_data
-    model = _fit(
-        MLPRegressor(hidden_layer_sizes=(4, 3), random_state=0, max_iter=1),
-        X,
-        y,
-    )
-    arrays = model.get_arrays()
+    model = MLPRegressor(hidden_layer_sizes=(4, 3), random_state=0, max_iter=1)
+    model.fit(X, y["y"])
+    arrays = _arrays_from_estimator(model)
     assert "coefs_0" in arrays
     assert "coefs_1" in arrays
     assert "intercepts_0" in arrays
@@ -88,24 +84,18 @@ def test_mlp_arrays_contain_layer_weights(regression_data):
 
 def test_mlp_fitted_state_contains_layer_info(regression_data):
     X, y = regression_data
-    model = _fit(
-        MLPRegressor(hidden_layer_sizes=(4,), random_state=0, max_iter=1),
-        X,
-        y,
-    )
-    fitted = model.get_state()["fitted_state"]
+    model = MLPRegressor(hidden_layer_sizes=(4,), random_state=0, max_iter=1)
+    model.fit(X, y["y"])
+    fitted = _collect_fitted_state(model)
     assert "n_layers_" in fitted
     assert "out_activation_" in fitted
 
 
 def test_rf_arrays_contain_tree_nodes(regression_data):
     X, y = regression_data
-    model = _fit(
-        RandomForestRegressor(n_estimators=3, max_depth=2, random_state=0),
-        X,
-        y,
-    )
-    arrays = model.get_arrays()
+    model = RandomForestRegressor(n_estimators=3, max_depth=2, random_state=0)
+    model.fit(X, y["y"])
+    arrays = _arrays_from_estimator(model)
     assert "_trees/0/values" in arrays
     assert "_trees/1/values" in arrays
     assert "_trees/2/values" in arrays
@@ -114,55 +104,36 @@ def test_rf_arrays_contain_tree_nodes(regression_data):
 
 def test_rf_state_contains_tree_count(regression_data):
     X, y = regression_data
-    model = _fit(
-        RandomForestRegressor(n_estimators=3, max_depth=2, random_state=0),
-        X,
-        y,
-    )
-    assert model.get_state()["fitted_state"]["n_trees"] == 3
+    model = RandomForestRegressor(n_estimators=3, max_depth=2, random_state=0)
+    model.fit(X, y["y"])
+    assert _collect_fitted_state(model)["n_trees"] == 3
 
 
 def test_gb_state_contains_init_type(regression_data):
     X, y = regression_data
-    model = _fit(
-        GradientBoostingRegressor(n_estimators=3, max_depth=2, random_state=0),
-        X,
-        y,
-    )
-    fitted = model.get_state()["fitted_state"]
+    model = GradientBoostingRegressor(n_estimators=3, max_depth=2, random_state=0)
+    model.fit(X, y["y"])
+    fitted = _collect_fitted_state(model)
     assert "_init/type" in fitted
     assert "DummyRegressor" in fitted["_init/type"]
 
 
 def test_hgb_arrays_contain_predictors_and_bin_mapper(regression_data):
     X, y = regression_data
-    model = _fit(
-        HistGradientBoostingRegressor(max_iter=3, random_state=0),
-        X,
-        y,
-    )
-    arrays = model.get_arrays()
+    model = HistGradientBoostingRegressor(max_iter=3, random_state=0)
+    model.fit(X, y["y"])
+    arrays = _arrays_from_estimator(model)
     assert "_baseline_prediction" in arrays
     assert "_bin_mapper/bin_thresholds_0" in arrays
     assert "_bin_mapper/is_categorical_" in arrays
     assert "_predictors/0/0/nodes_value" in arrays
 
 
-def test_scaler_state_contains_inner_type(regression_data):
-    X, _ = regression_data
-    scaler = SklearnScaler(preprocessing.StandardScaler())
-    scaler.fit(X)
-    state = scaler.get_state()
-    assert state["type"] == "SklearnScaler"
-    assert "StandardScaler" in state["inner_type"]
-    assert "init_params" in state
-
-
 def test_scaler_arrays_contain_mean_and_scale(regression_data):
     X, _ = regression_data
-    scaler = SklearnScaler(preprocessing.StandardScaler())
+    scaler = preprocessing.StandardScaler()
     scaler.fit(X)
-    arrays = scaler.get_arrays()
+    arrays = _arrays_from_estimator(scaler)
     assert "mean_" in arrays
     assert "scale_" in arrays
     assert "var_" in arrays

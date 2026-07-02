@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from sklearn.gaussian_process.kernels import RBF, Matern, Product, Sum, WhiteKernel
 
-from skeights._core import _deserialize_kernel, _serialize_kernel
+from skeights._kernels import _deserialize_kernel, _serialize_kernel
 
 
 @pytest.mark.parametrize(

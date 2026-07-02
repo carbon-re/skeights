@@ -5,8 +5,16 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 import pytest
+from sklearn.base import BaseEstimator
 
-from skeights import SklearnModel
+from skeights._core import (
+    _arrays_from_estimator,
+    _collect_fitted_state,
+    _restore_estimator_arrays,
+    _restore_fitted_state,
+)
+from skeights._params import _rebuild_estimator_from_params, get_model_params
+from skeights._utils import get_sklearn_public_path
 
 
 @pytest.fixture
@@ -25,7 +33,16 @@ def binary_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     return X, y
 
 
-def _round_trip(model: SklearnModel) -> SklearnModel:
-    state = model.get_state()
-    arrays = model.get_arrays()
-    return SklearnModel.from_state(state, arrays)
+def round_trip(estimator: BaseEstimator) -> BaseEstimator:
+    """Serialize and deserialize an estimator via state + arrays."""
+    params = get_model_params(estimator)
+    if "type" not in params:
+        params["type"] = get_sklearn_public_path(type(estimator))
+    arrays = _arrays_from_estimator(estimator)
+    fitted_state = _collect_fitted_state(estimator)
+
+    restored = _rebuild_estimator_from_params(params)
+    _restore_estimator_arrays(restored, arrays, fitted_state=fitted_state or None)
+    if fitted_state:
+        _restore_fitted_state(restored, fitted_state)
+    return restored

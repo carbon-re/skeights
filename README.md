@@ -40,17 +40,15 @@ from sklearn.linear_model import Ridge
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 
-# Fit your model
+# Fit your model as usual
 pipe = Pipeline([
     ("scaler", StandardScaler()),
     ("model", Ridge(alpha=0.1)),
 ])
 pipe.fit(X_train, y_train)
 
-# Wrap and save
-model = skeights.SklearnModel(pipe)
-model.fit(X_train, y_train)
-skeights.save(model, "model.safetensors", "model.json")
+# Save
+skeights.save(pipe, "model.safetensors", "model.json")
 
 # Load and predict
 loaded = skeights.load("model.safetensors", "model.json")

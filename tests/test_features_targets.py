@@ -1,4 +1,4 @@
-"""Verify features and targets survive round-trip."""
+"""Verify predictions survive round-trip for edge cases."""
 
 from __future__ import annotations
 
@@ -6,40 +6,29 @@ import numpy as np
 import pandas as pd
 from sklearn import linear_model, pipeline, preprocessing
 
-from skeights import SklearnModel
-
-from .conftest import _round_trip
+from .conftest import round_trip
 
 
-def test_features_preserved(regression_data):
-    X, y = regression_data
-    model = SklearnModel(linear_model.Ridge())
-    model.fit(X, y)
-    restored = _round_trip(model)
-    assert restored.get_features() == ["f0", "f1"]
-
-
-def test_targets_preserved(regression_data):
-    X, y = regression_data
-    model = SklearnModel(linear_model.Ridge())
-    model.fit(X, y)
-    restored = _round_trip(model)
-    assert restored.get_targets() == ["y"]
-
-
-def test_multi_target_preserved():
+def test_multi_target_round_trip():
     rng = np.random.default_rng(0)
     X = pd.DataFrame(rng.standard_normal((30, 2)), columns=["a", "b"])
-    y = pd.DataFrame({"t1": X["a"] * 2, "t2": X["b"] * 3})
-    model = SklearnModel(linear_model.Ridge())
+    y = np.column_stack([X["a"] * 2, X["b"] * 3])
+    model = linear_model.Ridge()
     model.fit(X, y)
-    restored = _round_trip(model)
-    assert restored.get_features() == ["a", "b"]
-    assert restored.get_targets() == ["t1", "t2"]
+    restored = round_trip(model)
     np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
 
 
-def test_pipeline_features_from_inner_step(regression_data):
+def test_single_sample():
+    X = np.array([[1.0, 2.0, 3.0]])
+    y = np.array([4.0])
+    model = linear_model.Ridge()
+    model.fit(X, y)
+    restored = round_trip(model)
+    np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
+
+
+def test_pipeline_predict_matches(regression_data):
     X, y = regression_data
     pipe = pipeline.Pipeline(
         [
@@ -47,16 +36,6 @@ def test_pipeline_features_from_inner_step(regression_data):
             ("model", linear_model.Ridge()),
         ]
     )
-    model = SklearnModel(pipe)
-    model.fit(X, y)
-    restored = _round_trip(model)
-    assert restored.get_features() == ["f0", "f1"]
-
-
-def test_use_predict_proba_preserved(binary_data):
-    X, y = binary_data
-    model = SklearnModel(linear_model.LogisticRegression(), use_predict_proba=True)
-    model.fit(X, y)
-    restored = _round_trip(model)
-    assert restored.use_predict_proba is True
-    np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
+    pipe.fit(X, y["y"])
+    restored = round_trip(pipe)
+    np.testing.assert_allclose(pipe.predict(X), restored.predict(X), atol=1e-10)

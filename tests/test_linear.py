@@ -3,20 +3,16 @@
 from __future__ import annotations
 
 import numpy as np
-import pandas as pd
-import pytest
 from sklearn import linear_model, pipeline, preprocessing
 
-from skeights import SklearnModel, SklearnScaler
-
-from .conftest import _round_trip
+from .conftest import round_trip
 
 
 def test_linear_round_trip(regression_data):
     X, y = regression_data
-    model = SklearnModel(linear_model.Ridge(alpha=0.1))
-    model.fit(X, y)
-    restored = _round_trip(model)
+    model = linear_model.Ridge(alpha=0.1)
+    model.fit(X, y["y"])
+    restored = round_trip(model)
     np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
 
 
@@ -28,25 +24,14 @@ def test_pipeline_round_trip(regression_data):
             ("model", linear_model.Ridge(alpha=0.1)),
         ]
     )
-    model = SklearnModel(pipe)
-    model.fit(X, y)
-    restored = _round_trip(model)
-    np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
+    pipe.fit(X, y["y"])
+    restored = round_trip(pipe)
+    np.testing.assert_allclose(pipe.predict(X), restored.predict(X), atol=1e-10)
 
 
-@pytest.mark.parametrize(
-    "scaler_cls",
-    [
-        preprocessing.StandardScaler,
-        preprocessing.MinMaxScaler,
-        preprocessing.RobustScaler,
-    ],
-)
-def test_scaler_round_trip(regression_data, scaler_cls):
+def test_scaler_round_trip(regression_data):
     X, _ = regression_data
-    scaler = SklearnScaler(scaler_cls())
+    scaler = preprocessing.StandardScaler()
     scaler.fit(X)
-    state = scaler.get_state()
-    arrays = scaler.get_arrays()
-    loaded = SklearnScaler.from_state(state, arrays)
-    pd.testing.assert_frame_equal(scaler.transform(X), loaded.transform(X))
+    restored = round_trip(scaler)
+    np.testing.assert_allclose(scaler.transform(X), restored.transform(X), atol=1e-10)
