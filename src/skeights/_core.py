@@ -79,9 +79,7 @@ def _fix_json_param_types(
     except TypeError:
         return params
     return {
-        k: tuple(v)
-        if isinstance(v, list) and isinstance(defaults.get(k), tuple)
-        else v
+        k: tuple(v) if isinstance(v, list) and isinstance(defaults.get(k), tuple) else v
         for k, v in params.items()
     }
 
@@ -172,8 +170,7 @@ def get_model_params(model: BaseEstimator) -> dict[str, Any]:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore", UserWarning)
                     return _serialize(
-                        _get_params(obj)
-                        | {"type": get_sklearn_public_path(type(obj))}
+                        _get_params(obj) | {"type": get_sklearn_public_path(type(obj))}
                     )
             return _serialize(
                 _get_params(obj) | {"type": get_sklearn_public_path(type(obj))}
@@ -184,9 +181,7 @@ def get_model_params(model: BaseEstimator) -> dict[str, Any]:
     return _serialize(_get_params(model))  # type: ignore
 
 
-def set_model_params(
-    model: BaseEstimator, params: dict[str, Any]
-) -> BaseEstimator:
+def set_model_params(model: BaseEstimator, params: dict[str, Any]) -> BaseEstimator:
     """Recursively set hyperparameters on an sklearn estimator."""
     params.pop("type", None)
     keys = list(params.keys())
@@ -230,8 +225,7 @@ def _get_weights_from_estimator(model: BaseEstimator) -> dict[str, Any]:
     if isinstance(model, Pipeline):
         return {
             "steps": {
-                k: _get_weights_from_estimator(v)
-                for k, v in model.named_steps.items()
+                k: _get_weights_from_estimator(v) for k, v in model.named_steps.items()
             }
         }
 
@@ -295,9 +289,7 @@ _MLP_FITTED_STATE_ATTRS = (
 )
 
 
-def _collect_fitted_state(
-    estimator: BaseEstimator, prefix: str = ""
-) -> dict[str, Any]:
+def _collect_fitted_state(estimator: BaseEstimator, prefix: str = "") -> dict[str, Any]:
     """Collect non-array fitted attributes from estimator instances.
 
     Walks Pipeline steps recursively. Handles MLPRegressor, GPR, GPC,
@@ -307,9 +299,7 @@ def _collect_fitted_state(
 
     if isinstance(estimator, Pipeline):
         for step_name, step in estimator.named_steps.items():
-            step_prefix = (
-                f"{prefix}{step_name}/" if prefix else f"{step_name}/"
-            )
+            step_prefix = f"{prefix}{step_name}/" if prefix else f"{step_name}/"
             state.update(_collect_fitted_state(step, prefix=step_prefix))
         return state
 
@@ -318,9 +308,7 @@ def _collect_fitted_state(
             if hasattr(estimator, attr):
                 state[f"{prefix}{attr}"] = getattr(estimator, attr)
 
-    elif isinstance(
-        estimator, GaussianProcessRegressor | GaussianProcessClassifier
-    ):
+    elif isinstance(estimator, GaussianProcessRegressor | GaussianProcessClassifier):
         if hasattr(estimator, "log_marginal_likelihood_value_"):
             state[f"{prefix}log_marginal_likelihood_value_"] = (
                 estimator.log_marginal_likelihood_value_
@@ -370,7 +358,8 @@ def _collect_fitted_state(
         )
         state[f"{prefix}_bin_mapper/n_features_"] = len(bm.bin_thresholds_)
         state[f"{prefix}_predictors_shape"] = [
-            len(pl) for pl in estimator._predictors  # type: ignore[attr-defined]
+            len(pl)
+            for pl in estimator._predictors  # type: ignore[attr-defined]
         ]
         if (
             estimator._predictors and estimator._predictors[0]  # type: ignore[attr-defined]
@@ -392,9 +381,7 @@ def _restore_fitted_state(
     """Restore non-array fitted attributes onto an estimator in-place."""
     if isinstance(estimator, Pipeline):
         for step_name, step in estimator.named_steps.items():
-            step_prefix = (
-                f"{prefix}{step_name}/" if prefix else f"{step_name}/"
-            )
+            step_prefix = f"{prefix}{step_name}/" if prefix else f"{step_name}/"
             _restore_fitted_state(step, fitted_state, prefix=step_prefix)
         return
 
@@ -404,18 +391,14 @@ def _restore_fitted_state(
             if key in fitted_state:
                 setattr(estimator, attr, fitted_state[key])
 
-    elif isinstance(
-        estimator, GaussianProcessRegressor | GaussianProcessClassifier
-    ):
+    elif isinstance(estimator, GaussianProcessRegressor | GaussianProcessClassifier):
         lml_key = f"{prefix}log_marginal_likelihood_value_"
         if lml_key in fitted_state:
             estimator.log_marginal_likelihood_value_ = fitted_state[lml_key]
         if isinstance(estimator, GaussianProcessRegressor):
             kernel_key = f"{prefix}kernel_"
             if kernel_key in fitted_state:
-                estimator.kernel_ = _deserialize_kernel(
-                    fitted_state[kernel_key]
-                )
+                estimator.kernel_ = _deserialize_kernel(fitted_state[kernel_key])
         else:
             n_classes_key = f"{prefix}n_classes_"
             if n_classes_key in fitted_state:
@@ -428,9 +411,7 @@ def _restore_fitted_state(
                     be.kernel_ = _deserialize_kernel(  # type: ignore[union-attr]
                         fitted_state[be_kernel_key]
                     )
-                be_lml_key = (
-                    f"{be_prefix}log_marginal_likelihood_value_"
-                )
+                be_lml_key = f"{be_prefix}log_marginal_likelihood_value_"
                 if be_lml_key in fitted_state:
                     be.log_marginal_likelihood_value_ = fitted_state[be_lml_key]  # type: ignore[union-attr]
 
@@ -446,12 +427,8 @@ def _arrays_from_estimator(
 
     if isinstance(estimator, Pipeline):
         for step_name, step in estimator.named_steps.items():
-            step_prefix = (
-                f"{prefix}{step_name}/" if prefix else f"{step_name}/"
-            )
-            arrays.update(
-                _arrays_from_estimator(step, prefix=step_prefix)
-            )
+            step_prefix = f"{prefix}{step_name}/" if prefix else f"{step_name}/"
+            arrays.update(_arrays_from_estimator(step, prefix=step_prefix))
         return arrays
 
     if isinstance(estimator, MLPRegressor):
@@ -481,9 +458,7 @@ def _arrays_from_estimator(
         if hasattr(estimator, "base_estimator_"):
             be_prefix = f"{prefix}base_estimator_/"
             arrays.update(
-                _arrays_from_estimator(
-                    estimator.base_estimator_, prefix=be_prefix
-                )
+                _arrays_from_estimator(estimator.base_estimator_, prefix=be_prefix)
             )
         return arrays
 
@@ -504,17 +479,13 @@ def _arrays_from_estimator(
         bm = estimator._bin_mapper  # type: ignore[attr-defined]
         for k, bt in enumerate(bm.bin_thresholds_):
             result[f"{prefix}_bin_mapper/bin_thresholds_{k}"] = np.asarray(bt)
-        result[f"{prefix}_bin_mapper/is_categorical_"] = np.asarray(
-            bm.is_categorical_
-        )
+        result[f"{prefix}_bin_mapper/is_categorical_"] = np.asarray(bm.is_categorical_)
         result[f"{prefix}_bin_mapper/n_bins_non_missing_"] = np.asarray(
             bm.n_bins_non_missing_
         )
         le = getattr(estimator, "_label_encoder", None)
         if le is not None:
-            result[f"{prefix}_label_encoder/classes_"] = np.asarray(
-                le.classes_
-            )
+            result[f"{prefix}_label_encoder/classes_"] = np.asarray(le.classes_)
         for i, pred_list in enumerate(
             estimator._predictors  # type: ignore[attr-defined]
         ):
@@ -533,9 +504,7 @@ def _arrays_from_estimator(
                 ]
         return result
 
-    supported = any(
-        hasattr(estimator, attr) for attr in _SKLEARN_ARRAY_ATTRS
-    )
+    supported = any(hasattr(estimator, attr) for attr in _SKLEARN_ARRAY_ATTRS)
     if not supported:
         raise NotImplementedError(
             f"_arrays_from_estimator does not support estimator type "
@@ -562,9 +531,7 @@ def _restore_estimator_arrays(
     """Restore numpy arrays onto a fitted skeleton estimator in-place."""
     if isinstance(estimator, Pipeline):
         for step_name, step in estimator.named_steps.items():
-            step_prefix = (
-                f"{prefix}{step_name}/" if prefix else f"{step_name}/"
-            )
+            step_prefix = f"{prefix}{step_name}/" if prefix else f"{step_name}/"
             _restore_estimator_arrays(
                 step, arrays, prefix=step_prefix, fitted_state=fitted_state
             )
@@ -616,16 +583,14 @@ def _restore_estimator_arrays(
                     _BinaryGaussianProcessClassifierLaplace,
                 )
 
-                estimator.base_estimator_ = (
-                    _BinaryGaussianProcessClassifierLaplace(
-                        kernel=estimator.kernel,
-                        optimizer=estimator.optimizer,
-                        n_restarts_optimizer=estimator.n_restarts_optimizer,
-                        max_iter_predict=estimator.max_iter_predict,
-                        warm_start=estimator.warm_start,
-                        copy_X_train=estimator.copy_X_train,
-                        random_state=estimator.random_state,
-                    )
+                estimator.base_estimator_ = _BinaryGaussianProcessClassifierLaplace(
+                    kernel=estimator.kernel,
+                    optimizer=estimator.optimizer,
+                    n_restarts_optimizer=estimator.n_restarts_optimizer,
+                    max_iter_predict=estimator.max_iter_predict,
+                    warm_start=estimator.warm_start,
+                    copy_X_train=estimator.copy_X_train,
+                    random_state=estimator.random_state,
                 )
             _restore_estimator_arrays(
                 estimator.base_estimator_, arrays, prefix=be_prefix
@@ -636,8 +601,12 @@ def _restore_estimator_arrays(
         estimator,
         HistGradientBoostingClassifier | HistGradientBoostingRegressor,
     ):
-        from sklearn.ensemble._hist_gradient_boosting.binning import _BinMapper  # type: ignore[attr-defined]
-        from sklearn.ensemble._hist_gradient_boosting.predictor import TreePredictor  # type: ignore[attr-defined]
+        from sklearn.ensemble._hist_gradient_boosting.binning import (
+            _BinMapper,  # type: ignore[attr-defined]
+        )
+        from sklearn.ensemble._hist_gradient_boosting.predictor import (
+            TreePredictor,  # type: ignore[attr-defined]
+        )
         from sklearn.preprocessing import LabelEncoder
 
         assert fitted_state is not None, "HGB restoration requires fitted_state"
@@ -664,9 +633,9 @@ def _restore_estimator_arrays(
             key = f"{prefix}{attr}"
             if key in arrays:
                 setattr(estimator, attr, arrays[key])
-        if isinstance(
-            estimator, HistGradientBoostingClassifier
-        ) and hasattr(estimator, "classes_"):
+        if isinstance(estimator, HistGradientBoostingClassifier) and hasattr(
+            estimator, "classes_"
+        ):
             estimator.n_classes_ = len(estimator.classes_)  # type: ignore[attr-defined]
 
         bm = _BinMapper(
@@ -682,13 +651,10 @@ def _restore_estimator_arrays(
         bm.known_categories = None  # type: ignore[attr-defined]
         n_features: int = fitted_state[f"{prefix}_bin_mapper/n_features_"]
         bm.bin_thresholds_ = [
-            arrays[f"{prefix}_bin_mapper/bin_thresholds_{k}"]
-            for k in range(n_features)
+            arrays[f"{prefix}_bin_mapper/bin_thresholds_{k}"] for k in range(n_features)
         ]
         bm.is_categorical_ = arrays[f"{prefix}_bin_mapper/is_categorical_"]
-        bm.n_bins_non_missing_ = arrays[
-            f"{prefix}_bin_mapper/n_bins_non_missing_"
-        ]
+        bm.n_bins_non_missing_ = arrays[f"{prefix}_bin_mapper/n_bins_non_missing_"]
         estimator._bin_mapper = bm  # type: ignore[attr-defined]
 
         le_key = f"{prefix}_label_encoder/classes_"
@@ -722,9 +688,7 @@ def _restore_estimator_arrays(
                     ("bitset_idx", "<u4"),
                 ]
             )
-        predictors_shape: list[int] = fitted_state[
-            f"{prefix}_predictors_shape"
-        ]
+        predictors_shape: list[int] = fitted_state[f"{prefix}_predictors_shape"]
         assert node_dtype.names is not None
         predictors = []
         for i, n_trees in enumerate(predictors_shape):
@@ -788,9 +752,7 @@ def _rebuild_estimator_from_params(params: dict[str, Any]) -> BaseEstimator:
                     and len(item) == 2
                     and isinstance(item[1], dict)
                 ):
-                    rebuilt.append(
-                        (item[0], _rebuild_estimator_from_params(item[1]))
-                    )
+                    rebuilt.append((item[0], _rebuild_estimator_from_params(item[1])))
                 else:
                     rebuilt.append(item)
             init_params[k] = rebuilt
@@ -863,20 +825,14 @@ class SklearnScaler:
         return {
             "type": self._registry_key,
             "inner_type": get_sklearn_public_path(type(self.scaler)),
-            "init_params": {
-                k: v for k, v in params.items() if not k.endswith("_")
-            },
+            "init_params": {k: v for k, v in params.items() if not k.endswith("_")},
         }
 
     @classmethod
-    def from_state(
-        cls, state: dict, arrays: dict[str, np.ndarray]
-    ) -> SklearnScaler:
+    def from_state(cls, state: dict, arrays: dict[str, np.ndarray]) -> SklearnScaler:
         """Reconstruct a fitted SklearnScaler from state and arrays."""
         inner_module, _, inner_class = state["inner_type"].rpartition(".")
-        inner_cls = getattr(
-            importlib.import_module(inner_module), inner_class
-        )
+        inner_cls = getattr(importlib.import_module(inner_module), inner_class)
         init_params = state.get("init_params", {})
         init_params = _fix_json_param_types(inner_cls, init_params)
         inner = inner_cls(**init_params)
@@ -900,9 +856,7 @@ class SklearnModel:
     _registry_key: str = "SklearnModel"
     use_predict_proba: bool = False
 
-    def __init__(
-        self, model: BaseEstimator, *, use_predict_proba: bool = False
-    ):
+    def __init__(self, model: BaseEstimator, *, use_predict_proba: bool = False):
         self.model = model
         self.use_predict_proba = use_predict_proba
         self.targets: list[str] | None = None
@@ -944,11 +898,7 @@ class SklearnModel:
             ):  # type: ignore
                 if self.use_predict_proba:
                     proba = self.model.predict_proba(X)  # type: ignore
-                    y = (
-                        proba[:, 1:]
-                        if proba.shape[1] == 2
-                        else proba
-                    )
+                    y = proba[:, 1:] if proba.shape[1] == 2 else proba
                 else:
                     y = self.model.predict(X)  # type: ignore
         if y.ndim == 1:
@@ -997,12 +947,8 @@ class SklearnModel:
     def from_state(cls, state: dict, arrays: dict[str, np.ndarray]) -> Self:
         """Reconstruct a fitted SklearnModel from state and arrays."""
         estimator = _rebuild_estimator_from_params(state["model_params"])
-        fitted_state = state.get("fitted_state") or state.get(
-            "mlp_fitted_state", {}
-        )
-        _restore_estimator_arrays(
-            estimator, arrays, fitted_state=fitted_state or None
-        )
+        fitted_state = state.get("fitted_state") or state.get("mlp_fitted_state", {})
+        _restore_estimator_arrays(estimator, arrays, fitted_state=fitted_state or None)
         if fitted_state:
             _restore_fitted_state(estimator, fitted_state)
         obj = cls.__new__(cls)

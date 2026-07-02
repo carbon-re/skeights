@@ -18,7 +18,6 @@ from sklearn.neural_network import MLPRegressor
 import skeights
 from skeights import SklearnModel, SklearnScaler
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -61,10 +60,12 @@ def test_linear_round_trip(regression_data):
 
 def test_pipeline_round_trip(regression_data):
     X, y = regression_data
-    pipe = pipeline.Pipeline([
-        ("scaler", preprocessing.StandardScaler()),
-        ("model", linear_model.Ridge(alpha=0.1)),
-    ])
+    pipe = pipeline.Pipeline(
+        [
+            ("scaler", preprocessing.StandardScaler()),
+            ("model", linear_model.Ridge(alpha=0.1)),
+        ]
+    )
     model = SklearnModel(pipe)
     model.fit(X, y)
     restored = _round_trip(model)
@@ -80,14 +81,24 @@ def test_pipeline_round_trip(regression_data):
 def test_mlp_round_trip(regression_data, use_pipeline: bool):
     X, y = regression_data
     if use_pipeline:
-        inner = pipeline.Pipeline([
-            ("scaler", preprocessing.StandardScaler()),
-            ("model", MLPRegressor(hidden_layer_sizes=(4,), activation="tanh",
-                                   random_state=0, max_iter=1000)),
-        ])
+        inner = pipeline.Pipeline(
+            [
+                ("scaler", preprocessing.StandardScaler()),
+                (
+                    "model",
+                    MLPRegressor(
+                        hidden_layer_sizes=(4,),
+                        activation="tanh",
+                        random_state=0,
+                        max_iter=1000,
+                    ),
+                ),
+            ]
+        )
     else:
-        inner = MLPRegressor(hidden_layer_sizes=(4,), activation="relu",
-                             random_state=0, max_iter=1000)
+        inner = MLPRegressor(
+            hidden_layer_sizes=(4,), activation="relu", random_state=0, max_iter=1000
+        )
     model = SklearnModel(inner)
     model.fit(X, y)
     restored = _round_trip(model)
@@ -103,10 +114,12 @@ def test_gpr_round_trip():
     rng = np.random.default_rng(42)
     X = pd.DataFrame(rng.standard_normal((20, 2)), columns=["f0", "f1"])
     y = pd.DataFrame({"y": np.sin(X["f0"]) + 0.1 * rng.standard_normal(20)})
-    model = SklearnModel(GaussianProcessRegressor(
-        kernel=WhiteKernel(noise_level=0.1) + RBF(length_scale=1.0),
-        random_state=0,
-    ))
+    model = SklearnModel(
+        GaussianProcessRegressor(
+            kernel=WhiteKernel(noise_level=0.1) + RBF(length_scale=1.0),
+            random_state=0,
+        )
+    )
     model.fit(X, y)
     restored = _round_trip(model)
     np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
@@ -114,9 +127,9 @@ def test_gpr_round_trip():
 
 def test_gpc_round_trip(binary_data):
     X, y = binary_data
-    model = SklearnModel(GaussianProcessClassifier(
-        kernel=WhiteKernel() + RBF(), random_state=0
-    ))
+    model = SklearnModel(
+        GaussianProcessClassifier(kernel=WhiteKernel() + RBF(), random_state=0)
+    )
     model.fit(X, y)
     orig = cast(GaussianProcessClassifier, model.model)
     rest = cast(GaussianProcessClassifier, _round_trip(model).model)
@@ -135,9 +148,11 @@ def test_hgb_regressor_round_trip():
     rng = np.random.default_rng(42)
     X = pd.DataFrame(rng.standard_normal((80, 3)), columns=["f0", "f1", "f2"])
     y = pd.DataFrame({"target": np.sin(X["f0"]) + 0.1 * rng.standard_normal(80)})
-    model = SklearnModel(ensemble.HistGradientBoostingRegressor(
-        max_iter=5, max_leaf_nodes=8, random_state=0
-    ))
+    model = SklearnModel(
+        ensemble.HistGradientBoostingRegressor(
+            max_iter=5, max_leaf_nodes=8, random_state=0
+        )
+    )
     model.fit(X, y)
     restored = _round_trip(model)
     np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
@@ -159,11 +174,14 @@ def test_hgb_classifier_round_trip(binary_data):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("scaler_cls", [
-    preprocessing.StandardScaler,
-    preprocessing.MinMaxScaler,
-    preprocessing.RobustScaler,
-])
+@pytest.mark.parametrize(
+    "scaler_cls",
+    [
+        preprocessing.StandardScaler,
+        preprocessing.MinMaxScaler,
+        preprocessing.RobustScaler,
+    ],
+)
 def test_scaler_round_trip(regression_data, scaler_cls):
     X, _ = regression_data
     scaler = SklearnScaler(scaler_cls())
@@ -179,12 +197,15 @@ def test_scaler_round_trip(regression_data, scaler_cls):
 # ---------------------------------------------------------------------------
 
 
-@pytest.mark.parametrize("kernel", [
-    RBF(length_scale=2.5),
-    WhiteKernel(noise_level=0.1) + RBF(length_scale=1.5),
-    RBF(length_scale=1.0) * Matern(length_scale=2.0, nu=1.5),
-    Sum(Product(RBF(), Matern()), WhiteKernel()),
-])
+@pytest.mark.parametrize(
+    "kernel",
+    [
+        RBF(length_scale=2.5),
+        WhiteKernel(noise_level=0.1) + RBF(length_scale=1.5),
+        RBF(length_scale=1.0) * Matern(length_scale=2.0, nu=1.5),
+        Sum(Product(RBF(), Matern()), WhiteKernel()),
+    ],
+)
 def test_kernel_round_trip(kernel):
     from skeights._core import _deserialize_kernel, _serialize_kernel
 
