@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="skeights logo" width="200">
+</p>
+
 # skeights
 
 Serialize fitted scikit-learn models to [safetensors](https://github.com/huggingface/safetensors) + JSON.
