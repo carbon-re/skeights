@@ -10,7 +10,7 @@ readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
 authors = [
-    { name = "Gigaton (Carbon Re)", email = "engineering@carbonre.com" },
+    { name = "Gigaton", email = "engineering@gigaton.co" },
 ]
 keywords = ["scikit-learn", "serialization", "safetensors", "machine-learning"]
 classifiers = [
