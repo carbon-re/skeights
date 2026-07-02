@@ -12,474 +12,33 @@ from __future__ import annotations
 
 import importlib
 import warnings
-from typing import Any, Self, cast
+from typing import Any, Self
 
 import numpy as np
 import pandas as pd
 import sklearn
 from sklearn.base import BaseEstimator
-from sklearn.compose import TransformedTargetRegressor
 from sklearn.discriminant_analysis import StandardScaler
-from sklearn.ensemble import (
-    GradientBoostingClassifier,
-    GradientBoostingRegressor,
-    HistGradientBoostingClassifier,
-    HistGradientBoostingRegressor,
-    RandomForestClassifier,
-    RandomForestRegressor,
-)
-from sklearn.gaussian_process import (
-    GaussianProcessClassifier,
-    GaussianProcessRegressor,
-)
-from sklearn.gaussian_process.kernels import Kernel
-from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, RobustScaler
-from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
+
+from skeights._utils import (
+    SKLEARN_ARRAY_ATTRS as _SKLEARN_ARRAY_ATTRS,
+)
+from skeights._utils import (
+    _fix_json_param_types,
+    get_sklearn_public_path,
+)
 
 # Supported inner sklearn scalers. Extend when new scaler types are wrapped.
 BaseScaler = StandardScaler | MinMaxScaler | RobustScaler
 
-# Tree-based ensemble types.
-_TreeEstimator = DecisionTreeRegressor | DecisionTreeClassifier
-_RandomForest = RandomForestRegressor | RandomForestClassifier
-_GradientBoosting = GradientBoostingRegressor | GradientBoostingClassifier
-_TreeEnsemble = _RandomForest | _GradientBoosting
 
+def _get_handlers():
+    """Lazy-load estimator handler modules to avoid circular imports."""
+    from skeights import _gp, _hgb, _mlp, _trees, _ttr
 
-def get_sklearn_public_path(cls: type[BaseEstimator | Kernel]) -> str:
-    """Return the stable public import path for an sklearn estimator class.
-
-    sklearn places concrete classes in private submodules (e.g.
-    ``sklearn.preprocessing._data.StandardScaler``) but re-exports them
-    from the public package (``sklearn.preprocessing.StandardScaler``).
-    This walks up the hierarchy, verifying each candidate via ``getattr``,
-    and falls back to the full private path if no public re-export is found.
-    """
-    parts = cls.__module__.split(".")
-    for i in range(len(parts), 0, -1):
-        if parts[i - 1].startswith("_"):
-            continue
-        candidate = ".".join(parts[:i])
-        try:
-            mod = importlib.import_module(candidate)
-            if getattr(mod, cls.__name__, None) is cls:
-                return f"{candidate}.{cls.__name__}"
-        except ImportError:
-            continue
-    full_path = f"{cls.__module__}.{cls.__name__}"
-    warnings.warn(
-        f"No public re-export found for {cls.__name__}; using private path "
-        f"'{full_path}'. This may break if sklearn reorganises internal modules.",
-        stacklevel=2,
-    )
-    return full_path
-
-
-def _fix_json_param_types(
-    cls: type[BaseEstimator], params: dict[str, Any]
-) -> dict[str, Any]:
-    """Convert list params back to tuples where sklearn expects tuples.
-
-    JSON serialization turns tuples into lists. sklearn's parameter
-    validation rejects lists for params declared as tuple (e.g.
-    RobustScaler.quantile_range, MinMaxScaler.feature_range).
-    """
-    try:
-        defaults = cls().get_params()
-    except TypeError:
-        return params
-    return {
-        k: tuple(v) if isinstance(v, list) and isinstance(defaults.get(k), tuple) else v
-        for k, v in params.items()
-    }
-
-
-# ---------------------------------------------------------------------------
-# Kernel serialization
-# ---------------------------------------------------------------------------
-
-
-def _serialize_kernel(kernel: Kernel) -> dict[str, Any]:
-    """Recursively convert a kernel tree to a JSON-safe dict."""
-    from sklearn.gaussian_process.kernels import KernelOperator
-
-    data: dict[str, Any] = {"type": get_sklearn_public_path(type(kernel))}
-    if isinstance(kernel, KernelOperator):
-        data["k1"] = _serialize_kernel(kernel.k1)
-        data["k2"] = _serialize_kernel(kernel.k2)
-    else:
-        params = kernel.get_params(deep=False)
-        for k, v in params.items():
-            if isinstance(v, np.ndarray):
-                data[k] = v.tolist()
-            elif isinstance(v, tuple):
-                data[k] = list(v)
-            else:
-                data[k] = v
-    return data
-
-
-def _deserialize_kernel(data: dict[str, Any]) -> Kernel:
-    """Reconstruct a kernel tree from a serialised dict."""
-    from sklearn.gaussian_process.kernels import KernelOperator
-
-    data = dict(data)
-    type_path: str = data.pop("type")
-    module_path, _, class_name = type_path.rpartition(".")
-    cls = getattr(importlib.import_module(module_path), class_name)
-
-    if issubclass(cls, KernelOperator):
-        k1 = _deserialize_kernel(data["k1"])
-        k2 = _deserialize_kernel(data["k2"])
-        return cls(k1=k1, k2=k2)
-
-    # Leaf kernel — convert list params back to correct types
-    try:
-        defaults = cls().get_params(deep=False)
-    except TypeError:
-        defaults = {}
-
-    init_params: dict[str, Any] = {}
-    for k, v in data.items():
-        if isinstance(v, list):
-            if isinstance(defaults.get(k), tuple):
-                init_params[k] = tuple(v)
-            else:
-                init_params[k] = np.asarray(v)
-        else:
-            init_params[k] = v
-    return cls(**init_params)
-
-
-# ---------------------------------------------------------------------------
-# Decision-tree serialization helpers
-# ---------------------------------------------------------------------------
-
-
-def _arrays_from_tree(tree_obj: object, prefix: str) -> dict[str, np.ndarray]:
-    """Extract arrays from a sklearn Tree object (tree_ attribute)."""
-    state = tree_obj.__getstate__()  # type: ignore[union-attr]
-    arrays: dict[str, np.ndarray] = {}
-    nodes = state["nodes"]  # type: ignore[index]
-    assert nodes.dtype.names is not None
-    for field in nodes.dtype.names:
-        arrays[f"{prefix}nodes_{field}"] = nodes[field].copy()
-    arrays[f"{prefix}values"] = state["values"]  # type: ignore[index]
-    return arrays
-
-
-def _state_from_tree(tree_obj: object, prefix: str) -> dict[str, Any]:
-    """Extract scalar state from a sklearn Tree object."""
-    state = tree_obj.__getstate__()  # type: ignore[union-attr]
-    result: dict[str, Any] = {}
-    result[f"{prefix}max_depth"] = state["max_depth"]  # type: ignore[index]
-    result[f"{prefix}node_count"] = state["node_count"]  # type: ignore[index]
-    # Tree constructor needs n_features, n_classes, n_outputs — always read
-    # from the object (available as attrs even when __getstate__ omits them).
-    result[f"{prefix}n_features"] = tree_obj.n_features  # type: ignore[union-attr]
-    result[f"{prefix}n_outputs"] = tree_obj.n_outputs  # type: ignore[union-attr]
-    n_classes = tree_obj.n_classes  # type: ignore[union-attr]
-    result[f"{prefix}n_classes"] = (
-        list(n_classes) if hasattr(n_classes, "tolist") else n_classes
-    )
-    nodes = state["nodes"]  # type: ignore[index]
-    result[f"{prefix}nodes_dtype"] = [
-        [name, nodes.dtype[name].str]
-        for name in nodes.dtype.names  # type: ignore[union-attr]
-    ]
-    return result
-
-
-def _make_tree(
-    arrays: dict[str, np.ndarray],
-    fitted_state: dict[str, Any],
-    prefix: str,
-) -> object:
-    """Create and restore a sklearn Tree object from arrays and state."""
-    from sklearn.tree._tree import Tree
-
-    n_features = fitted_state[f"{prefix}n_features"]
-    n_classes = fitted_state[f"{prefix}n_classes"]
-    n_outputs = fitted_state[f"{prefix}n_outputs"]
-    n_classes_arr = np.array(n_classes) if isinstance(n_classes, list) else n_classes
-
-    tree = Tree(
-        n_features=n_features,
-        n_classes=n_classes_arr,
-        n_outputs=n_outputs,
-    )
-
-    dtype_spec = fitted_state[f"{prefix}nodes_dtype"]
-    node_dtype = np.dtype([(name, dstr) for name, dstr in dtype_spec])
-    assert node_dtype.names is not None
-    first_field = node_dtype.names[0]
-    n_nodes = arrays[f"{prefix}nodes_{first_field}"].shape[0]
-    nodes = np.empty(n_nodes, dtype=node_dtype)
-    for field in node_dtype.names:
-        nodes[field] = arrays[f"{prefix}nodes_{field}"]
-
-    tree_state: dict[str, Any] = {
-        "max_depth": fitted_state[f"{prefix}max_depth"],
-        "node_count": fitted_state[f"{prefix}node_count"],
-        "nodes": nodes,
-        "values": arrays[f"{prefix}values"],
-    }
-    tree.__setstate__(tree_state)
-    return tree
-
-
-def _arrays_from_tree_ensemble(
-    estimator: _TreeEnsemble, prefix: str
-) -> dict[str, np.ndarray]:
-    """Extract arrays from all trees in a RandomForest or GradientBoosting."""
-    arrays: dict[str, np.ndarray] = {}
-
-    if isinstance(estimator, _RandomForest):
-        trees = estimator.estimators_
-    else:
-        # GB: estimators_ is ndarray (n_estimators, n_trees_per_iter)
-        trees = [
-            estimator.estimators_[i][j]
-            for i in range(estimator.estimators_.shape[0])
-            for j in range(estimator.estimators_.shape[1])
-        ]
-
-    for i, tree_est in enumerate(trees):
-        arrays.update(_arrays_from_tree(tree_est.tree_, f"{prefix}_trees/{i}/"))
-
-    # Classifier classes
-    if hasattr(estimator, "classes_"):
-        arrays[f"{prefix}classes_"] = np.asarray(estimator.classes_)  # type: ignore[union-attr]
-
-    # GradientBoosting: train_score_ and init_ arrays
-    if isinstance(estimator, _GradientBoosting):
-        if hasattr(estimator, "train_score_"):
-            arrays[f"{prefix}train_score_"] = np.asarray(estimator.train_score_)
-        # init_ is a DummyRegressor/DummyClassifier with constant_/class_prior_
-        if hasattr(estimator, "init_") and hasattr(estimator.init_, "constant_"):
-            arrays[f"{prefix}_init/constant_"] = np.asarray(estimator.init_.constant_)  # type: ignore[union-attr]
-        if hasattr(estimator, "init_") and hasattr(estimator.init_, "class_prior_"):
-            arrays[f"{prefix}_init/class_prior_"] = np.asarray(
-                estimator.init_.class_prior_  # type: ignore[union-attr]
-            )
-        if hasattr(estimator, "init_") and hasattr(estimator.init_, "classes_"):
-            arrays[f"{prefix}_init/classes_"] = np.asarray(estimator.init_.classes_)  # type: ignore[union-attr]
-
-    return arrays
-
-
-def _state_from_tree_ensemble(estimator: _TreeEnsemble, prefix: str) -> dict[str, Any]:
-    """Collect fitted state from a tree ensemble."""
-    state: dict[str, Any] = {}
-
-    if isinstance(estimator, _RandomForest):
-        trees = estimator.estimators_
-        state[f"{prefix}n_trees"] = len(trees)
-    else:
-        shape = estimator.estimators_.shape
-        state[f"{prefix}estimators_shape"] = list(shape)
-        trees = [
-            estimator.estimators_[i][j]
-            for i in range(shape[0])
-            for j in range(shape[1])
-        ]
-        state[f"{prefix}n_estimators_"] = estimator.n_estimators_
-        if hasattr(estimator, "init_"):
-            state[f"{prefix}_init/type"] = get_sklearn_public_path(
-                type(estimator.init_)
-            )
-
-    for i, tree_est in enumerate(trees):
-        state.update(_state_from_tree(tree_est.tree_, f"{prefix}_trees/{i}/"))
-
-    for attr in ("n_features_in_", "n_outputs_", "n_classes_"):
-        if hasattr(estimator, attr):
-            state[f"{prefix}{attr}"] = getattr(estimator, attr)
-
-    return state
-
-
-def _make_tree_estimator(
-    arrays: dict[str, np.ndarray],
-    fitted_state: dict[str, Any],
-    prefix: str,
-    is_classifier: bool,
-    n_features_in: int,
-    n_outputs: int,
-) -> _TreeEstimator:
-    """Create a fitted DecisionTree estimator from serialized state."""
-    tree_est: _TreeEstimator = (
-        DecisionTreeClassifier() if is_classifier else DecisionTreeRegressor()
-    )
-    tree_est.tree_ = _make_tree(arrays, fitted_state, prefix)  # type: ignore[attr-defined]
-    tree_est.n_features_in_ = n_features_in  # type: ignore[attr-defined]
-    tree_est.n_outputs_ = n_outputs  # type: ignore[attr-defined]
-    # Classifiers need n_classes_ and classes_ for predict_proba
-    if is_classifier:
-        n_classes = fitted_state[f"{prefix}n_classes"]
-        tree_est.n_classes_ = (
-            max(n_classes) if isinstance(n_classes, list) else n_classes
-        )  # type: ignore[attr-defined]
-    return tree_est
-
-
-def _restore_tree_ensemble(
-    estimator: _TreeEnsemble,
-    arrays: dict[str, np.ndarray],
-    fitted_state: dict[str, Any],
-    prefix: str,
-) -> None:
-    """Restore a tree ensemble from arrays and state."""
-    # Restore ensemble-level attrs
-    for attr in ("n_features_in_", "n_outputs_", "n_classes_"):
-        key = f"{prefix}{attr}"
-        if key in fitted_state:
-            setattr(estimator, attr, fitted_state[key])
-
-    classes_key = f"{prefix}classes_"
-    if classes_key in arrays:
-        estimator.classes_ = arrays[classes_key]  # type: ignore[union-attr]
-        if not hasattr(estimator, "n_classes_"):
-            estimator.n_classes_ = len(estimator.classes_)  # type: ignore[attr-defined]
-
-    is_clf = isinstance(estimator, (RandomForestClassifier, GradientBoostingClassifier))
-    n_feat = fitted_state[f"{prefix}n_features_in_"]
-    n_out = fitted_state.get(f"{prefix}n_outputs_", 1)
-
-    if isinstance(estimator, _RandomForest):
-        n_trees = fitted_state[f"{prefix}n_trees"]
-        estimator.estimators_ = [
-            _make_tree_estimator(
-                arrays,
-                fitted_state,
-                f"{prefix}_trees/{i}/",
-                is_clf,
-                n_feat,
-                n_out,
-            )
-            for i in range(n_trees)
-        ]
-    else:
-        # GradientBoosting
-        shape = fitted_state[f"{prefix}estimators_shape"]
-        estimator.n_estimators_ = fitted_state[f"{prefix}n_estimators_"]
-        ts_key = f"{prefix}train_score_"
-        if ts_key in arrays:
-            estimator.train_score_ = arrays[ts_key]
-
-        # Restore init_
-        init_type_key = f"{prefix}_init/type"
-        if init_type_key in fitted_state:
-            init_path = fitted_state[init_type_key]
-            mod_path, _, cls_name = init_path.rpartition(".")
-            init_cls = getattr(importlib.import_module(mod_path), cls_name)
-            init = init_cls()
-            init.n_outputs_ = n_out  # type: ignore[attr-defined]
-            init.n_features_in_ = n_feat  # type: ignore[attr-defined]
-            # Set _strategy (private attr derived from strategy param)
-            init._strategy = init.strategy  # type: ignore[attr-defined]
-            const_key = f"{prefix}_init/constant_"
-            if const_key in arrays:
-                init.constant_ = arrays[const_key]  # type: ignore[attr-defined]
-            prior_key = f"{prefix}_init/class_prior_"
-            if prior_key in arrays:
-                init.class_prior_ = arrays[prior_key]  # type: ignore[attr-defined]
-            init_classes_key = f"{prefix}_init/classes_"
-            if init_classes_key in arrays:
-                init.classes_ = arrays[init_classes_key]  # type: ignore[attr-defined]
-                init.n_classes_ = len(arrays[init_classes_key])  # type: ignore[attr-defined]
-            estimator.init_ = init
-
-        # Create tree grid — GB trees are always regressors (even for classification)
-        estimator.estimators_ = np.empty(shape, dtype=object)
-        idx = 0
-        for i in range(shape[0]):
-            for j in range(shape[1]):
-                estimator.estimators_[i][j] = _make_tree_estimator(
-                    arrays,
-                    fitted_state,
-                    f"{prefix}_trees/{idx}/",
-                    is_classifier=False,
-                    n_features_in=n_feat,
-                    n_outputs=n_out,
-                )
-                idx += 1
-
-        # Reinstate internal loss object needed for _raw_predict
-        estimator._loss = estimator._get_loss(sample_weight=None)  # type: ignore[attr-defined]
-
-
-# ---------------------------------------------------------------------------
-# Param serialization (get/set)
-# ---------------------------------------------------------------------------
-
-
-def get_model_params(model: BaseEstimator) -> dict[str, Any]:
-    """Recursively extract hyperparameters from a fitted sklearn estimator."""
-
-    def _get_params(model):
-        params = model.get_params(deep=False)
-        for k in list(params):
-            if hasattr(model, f"named_{k}"):
-                params[k] = getattr(model, f"named_{k}")
-        return params
-
-    def _serialize(obj):
-        if isinstance(obj, list):
-            return [_serialize(o) for o in obj]
-        elif isinstance(obj, tuple):
-            return tuple(_serialize(o) for o in obj)
-        elif isinstance(obj, dict):
-            return {k: _serialize(v) for k, v in obj.items()}
-        elif isinstance(obj, Kernel):
-            return _serialize_kernel(obj)
-        elif isinstance(obj, BaseEstimator):
-            if isinstance(obj, GaussianProcessClassifier):
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore", UserWarning)
-                    return _serialize(
-                        _get_params(obj) | {"type": get_sklearn_public_path(type(obj))}
-                    )
-            return _serialize(
-                _get_params(obj) | {"type": get_sklearn_public_path(type(obj))}
-            )
-        else:
-            return obj
-
-    return _serialize(_get_params(model))  # type: ignore
-
-
-def set_model_params(model: BaseEstimator, params: dict[str, Any]) -> BaseEstimator:
-    """Recursively set hyperparameters on an sklearn estimator."""
-    params.pop("type", None)
-    # Make TransformedTargetRegressor transparent to dotted-path param setting:
-    # route params to the wrapped regressor so callers don't need to know about
-    # the target scaler. When the params *do* address the wrapper explicitly
-    # (e.g. a serialised state carrying "regressor"/"transformer"), fall through.
-    if isinstance(model, TransformedTargetRegressor) and not (
-        {"regressor", "transformer"} & set(params)
-    ):
-        set_model_params(cast(BaseEstimator, model.regressor), params)
-        return model
-    keys = list(params.keys())
-    for key in keys:
-        if hasattr(model, f"named_{key}"):
-            attr = getattr(model, f"named_{key}")
-        else:
-            attr = getattr(model, key)
-        if isinstance(attr, BaseEstimator):
-            set_model_params(attr, params.pop(key))
-        elif isinstance(attr, dict):
-            values = params[key]
-            for k, v in attr.items():
-                if isinstance(v, BaseEstimator):
-                    if k in values:
-                        set_model_params(v, values.pop(k))
-            if not values:
-                params.pop(key)
-    return model.set_params(**params)  # type: ignore
+    return [_trees, _ttr, _mlp, _gp, _hgb]
 
 
 # ---------------------------------------------------------------------------
@@ -530,49 +89,14 @@ def _get_weights_from_estimator(model: BaseEstimator) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
-# Array extraction / restoration
+# Dispatch: collect / restore fitted state and arrays
 # ---------------------------------------------------------------------------
-
-_SKLEARN_ARRAY_ATTRS = (
-    "coef_",
-    "intercept_",
-    "feature_importances_",
-    "mean_",
-    "n_samples_seen_",
-    "scale_",
-    "var_",
-    "min_",
-    "data_min_",
-    "data_max_",
-    "data_range_",
-    # GP inner estimator arrays (GPC base_estimator_ / GPR direct)
-    "X_train_",
-    "L_",
-    "pi_",
-    "W_sr_",
-    "y_train_",
-    "classes_",
-)
-
-# Non-array fitted attributes on MLPRegressor that must be persisted in JSON
-# (beyond coefs_/intercepts_ which go to safetensors).
-_MLP_FITTED_STATE_ATTRS = (
-    "n_layers_",
-    "n_outputs_",
-    "out_activation_",
-    "n_iter_",
-    "t_",
-    "loss_",
-    "best_loss_",
-    "n_iter_no_change",
-)
 
 
 def _collect_fitted_state(estimator: BaseEstimator, prefix: str = "") -> dict[str, Any]:
     """Collect non-array fitted attributes from estimator instances.
 
-    Walks Pipeline steps recursively. Handles MLPRegressor, GPR, GPC,
-    and HistGradientBoosting estimators.
+    Walks Pipeline steps recursively. Dispatches to estimator-family modules.
     """
     state: dict[str, Any] = {}
 
@@ -582,103 +106,9 @@ def _collect_fitted_state(estimator: BaseEstimator, prefix: str = "") -> dict[st
             state.update(_collect_fitted_state(step, prefix=step_prefix))
         return state
 
-    if isinstance(estimator, (_RandomForest, _GradientBoosting)):
-        return _state_from_tree_ensemble(estimator, prefix)  # type: ignore[arg-type]
-
-    if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
-        state.update(_state_from_tree(estimator.tree_, f"{prefix}_tree/"))
-        for attr in ("n_features_in_", "n_outputs_", "n_classes_"):
-            if hasattr(estimator, attr):
-                state[f"{prefix}{attr}"] = getattr(estimator, attr)
-        if hasattr(estimator, "classes_"):
-            pass  # stored as array
-        return state
-
-    if isinstance(estimator, TransformedTargetRegressor):
-        if hasattr(estimator, "_training_dim"):
-            state[f"{prefix}_training_dim"] = estimator._training_dim
-        if hasattr(estimator, "regressor_"):
-            state.update(
-                _collect_fitted_state(
-                    cast(BaseEstimator, estimator.regressor_),
-                    prefix=f"{prefix}regressor_/",
-                )
-            )
-        if hasattr(estimator, "transformer_"):
-            state.update(
-                _collect_fitted_state(
-                    cast(BaseEstimator, estimator.transformer_),
-                    prefix=f"{prefix}transformer_/",
-                )
-            )
-        return state
-
-    if isinstance(estimator, (MLPRegressor, MLPClassifier)):
-        for attr in _MLP_FITTED_STATE_ATTRS:
-            if hasattr(estimator, attr):
-                state[f"{prefix}{attr}"] = getattr(estimator, attr)
-
-    elif isinstance(estimator, GaussianProcessRegressor | GaussianProcessClassifier):
-        if hasattr(estimator, "log_marginal_likelihood_value_"):
-            state[f"{prefix}log_marginal_likelihood_value_"] = (
-                estimator.log_marginal_likelihood_value_
-            )
-        if isinstance(estimator, GaussianProcessRegressor):
-            if hasattr(estimator, "kernel_"):
-                state[f"{prefix}kernel_"] = _serialize_kernel(
-                    estimator.kernel_  # type: ignore[arg-type]
-                )
-        else:
-            if hasattr(estimator, "n_classes_"):
-                state[f"{prefix}n_classes_"] = estimator.n_classes_
-            if hasattr(estimator, "base_estimator_"):
-                be_prefix = f"{prefix}base_estimator_/"
-                be = estimator.base_estimator_
-                if hasattr(be, "kernel_"):
-                    state[f"{be_prefix}kernel_"] = _serialize_kernel(
-                        be.kernel_  # type: ignore[union-attr]
-                    )
-                if hasattr(be, "log_marginal_likelihood_value_"):
-                    state[f"{be_prefix}log_marginal_likelihood_value_"] = (
-                        be.log_marginal_likelihood_value_  # type: ignore[union-attr]
-                    )
-
-    elif isinstance(
-        estimator,
-        HistGradientBoostingClassifier | HistGradientBoostingRegressor,
-    ):
-        for attr in (
-            "n_trees_per_iteration_",
-            "do_early_stopping_",
-            "n_features_in_",
-        ):
-            if hasattr(estimator, attr):
-                state[f"{prefix}{attr}"] = getattr(estimator, attr)
-        if hasattr(estimator, "_random_seed"):
-            state[f"{prefix}_random_seed"] = int(
-                estimator._random_seed  # type: ignore[attr-defined]
-            )
-        bm = estimator._bin_mapper  # type: ignore[attr-defined]
-        state[f"{prefix}_bin_mapper/n_bins"] = bm.n_bins
-        state[f"{prefix}_bin_mapper/subsample"] = bm.subsample
-        state[f"{prefix}_bin_mapper/random_state"] = int(bm.random_state)  # type: ignore[arg-type]
-        state[f"{prefix}_bin_mapper/n_threads"] = bm.n_threads
-        state[f"{prefix}_bin_mapper/missing_values_bin_idx_"] = int(
-            bm.missing_values_bin_idx_  # type: ignore[arg-type]
-        )
-        state[f"{prefix}_bin_mapper/n_features_"] = len(bm.bin_thresholds_)
-        state[f"{prefix}_predictors_shape"] = [
-            len(pl)
-            for pl in estimator._predictors  # type: ignore[attr-defined]
-        ]
-        if (
-            estimator._predictors and estimator._predictors[0]  # type: ignore[attr-defined]
-        ):
-            sample_nodes = estimator._predictors[0][0].__getstate__()["nodes"]  # type: ignore[attr-defined]
-            state[f"{prefix}_predictors_node_dtype"] = [
-                [name, sample_nodes.dtype[name].str]
-                for name in sample_nodes.dtype.names
-            ]
+    for handler in _get_handlers():
+        if handler.handles(estimator):
+            return handler.collect_state(estimator, prefix)
 
     return state
 
@@ -695,181 +125,28 @@ def _restore_fitted_state(
             _restore_fitted_state(step, fitted_state, prefix=step_prefix)
         return
 
-    # Tree ensembles and standalone trees are handled in the arrays path.
-    if isinstance(
-        estimator,
-        (
-            _RandomForest,
-            _GradientBoosting,
-            DecisionTreeRegressor,
-            DecisionTreeClassifier,
-        ),
-    ):
-        return
-
-    if isinstance(estimator, TransformedTargetRegressor):
-        key = f"{prefix}_training_dim"
-        if key in fitted_state:
-            estimator._training_dim = fitted_state[key]
-        if hasattr(estimator, "regressor_"):
-            _restore_fitted_state(
-                cast(BaseEstimator, estimator.regressor_),
-                fitted_state,
-                prefix=f"{prefix}regressor_/",
-            )
-        if hasattr(estimator, "transformer_"):
-            _restore_fitted_state(
-                cast(BaseEstimator, estimator.transformer_),
-                fitted_state,
-                prefix=f"{prefix}transformer_/",
-            )
-        return
-
-    if isinstance(estimator, (MLPRegressor, MLPClassifier)):
-        for attr in _MLP_FITTED_STATE_ATTRS:
-            key = f"{prefix}{attr}"
-            if key in fitted_state:
-                setattr(estimator, attr, fitted_state[key])
-
-    elif isinstance(estimator, GaussianProcessRegressor | GaussianProcessClassifier):
-        lml_key = f"{prefix}log_marginal_likelihood_value_"
-        if lml_key in fitted_state:
-            estimator.log_marginal_likelihood_value_ = fitted_state[lml_key]
-        if isinstance(estimator, GaussianProcessRegressor):
-            kernel_key = f"{prefix}kernel_"
-            if kernel_key in fitted_state:
-                estimator.kernel_ = _deserialize_kernel(fitted_state[kernel_key])
-        else:
-            n_classes_key = f"{prefix}n_classes_"
-            if n_classes_key in fitted_state:
-                estimator.n_classes_ = fitted_state[n_classes_key]
-            be_prefix = f"{prefix}base_estimator_/"
-            if hasattr(estimator, "base_estimator_"):
-                be = estimator.base_estimator_
-                be_kernel_key = f"{be_prefix}kernel_"
-                if be_kernel_key in fitted_state:
-                    be.kernel_ = _deserialize_kernel(  # type: ignore[union-attr]
-                        fitted_state[be_kernel_key]
-                    )
-                be_lml_key = f"{be_prefix}log_marginal_likelihood_value_"
-                if be_lml_key in fitted_state:
-                    be.log_marginal_likelihood_value_ = fitted_state[be_lml_key]  # type: ignore[union-attr]
+    for handler in _get_handlers():
+        if handler.handles(estimator):
+            handler.restore_state(estimator, fitted_state, prefix)
+            return
 
 
 def _arrays_from_estimator(
     estimator: BaseEstimator, prefix: str = ""
 ) -> dict[str, np.ndarray]:
     """Recursively extract numpy arrays from a fitted sklearn estimator."""
-    arrays: dict[str, np.ndarray] = {}
-
-    def _key(name: str) -> str:
-        return f"{prefix}{name}"
-
     if isinstance(estimator, Pipeline):
+        arrays: dict[str, np.ndarray] = {}
         for step_name, step in estimator.named_steps.items():
             step_prefix = f"{prefix}{step_name}/" if prefix else f"{step_name}/"
             arrays.update(_arrays_from_estimator(step, prefix=step_prefix))
         return arrays
 
-    if isinstance(estimator, (_RandomForest, _GradientBoosting)):
-        return _arrays_from_tree_ensemble(estimator, prefix)  # type: ignore[arg-type]
+    for handler in _get_handlers():
+        if handler.handles(estimator):
+            return handler.extract_arrays(estimator, prefix)
 
-    if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
-        arrays.update(_arrays_from_tree(estimator.tree_, f"{prefix}_tree/"))
-        if hasattr(estimator, "classes_"):
-            arrays[f"{prefix}classes_"] = np.asarray(estimator.classes_)
-        return arrays
-
-    if isinstance(estimator, TransformedTargetRegressor):
-        if hasattr(estimator, "regressor_"):
-            arrays.update(
-                _arrays_from_estimator(
-                    cast(BaseEstimator, estimator.regressor_),
-                    prefix=f"{prefix}regressor_/",
-                )
-            )
-        if hasattr(estimator, "transformer_"):
-            arrays.update(
-                _arrays_from_estimator(
-                    cast(BaseEstimator, estimator.transformer_),
-                    prefix=f"{prefix}transformer_/",
-                )
-            )
-        return arrays
-
-    if isinstance(estimator, (MLPRegressor, MLPClassifier)):
-        if hasattr(estimator, "coefs_"):
-            for i, w in enumerate(estimator.coefs_):
-                arrays[f"{prefix}coefs_{i}"] = np.asarray(w)
-        if hasattr(estimator, "intercepts_"):
-            for i, b in enumerate(estimator.intercepts_):
-                arrays[f"{prefix}intercepts_{i}"] = np.asarray(b)
-        return arrays
-
-    if isinstance(estimator, GaussianProcessRegressor):
-        for attr in (
-            "X_train_",
-            "alpha_",
-            "L_",
-            "_y_train_mean",
-            "_y_train_std",
-        ):
-            if hasattr(estimator, attr):
-                arrays[_key(attr)] = np.asarray(getattr(estimator, attr))
-        return arrays
-
-    if isinstance(estimator, GaussianProcessClassifier):
-        if hasattr(estimator, "classes_"):
-            arrays[_key("classes_")] = np.asarray(estimator.classes_)
-        if hasattr(estimator, "base_estimator_"):
-            be_prefix = f"{prefix}base_estimator_/"
-            arrays.update(
-                _arrays_from_estimator(estimator.base_estimator_, prefix=be_prefix)
-            )
-        return arrays
-
-    if isinstance(
-        estimator,
-        HistGradientBoostingClassifier | HistGradientBoostingRegressor,
-    ):
-        result: dict[str, np.ndarray] = {}
-        for attr in (
-            "classes_",
-            "train_score_",
-            "validation_score_",
-            "_baseline_prediction",
-        ):
-            val = getattr(estimator, attr, None)
-            if val is not None:
-                result[f"{prefix}{attr}"] = np.asarray(val)
-        bm = estimator._bin_mapper  # type: ignore[attr-defined]
-        for k, bt in enumerate(bm.bin_thresholds_):
-            result[f"{prefix}_bin_mapper/bin_thresholds_{k}"] = np.asarray(bt)
-        result[f"{prefix}_bin_mapper/is_categorical_"] = np.asarray(bm.is_categorical_)
-        result[f"{prefix}_bin_mapper/n_bins_non_missing_"] = np.asarray(
-            bm.n_bins_non_missing_
-        )
-        le = getattr(estimator, "_label_encoder", None)
-        if le is not None:
-            result[f"{prefix}_label_encoder/classes_"] = np.asarray(le.classes_)
-        for i, pred_list in enumerate(
-            estimator._predictors  # type: ignore[attr-defined]
-        ):
-            for j, pred in enumerate(pred_list):
-                pstate = pred.__getstate__()
-                pprefix = f"{prefix}_predictors/{i}/{j}/"
-                nodes = pstate["nodes"]
-                assert nodes.dtype.names is not None
-                for field in nodes.dtype.names:
-                    result[f"{pprefix}nodes_{field}"] = nodes[field].copy()
-                result[f"{pprefix}binned_left_cat_bitsets"] = pstate[
-                    "binned_left_cat_bitsets"
-                ]
-                result[f"{pprefix}raw_left_cat_bitsets"] = pstate[
-                    "raw_left_cat_bitsets"
-                ]
-        return result
-
+    # Generic fallback for linear models, scalers, etc.
     supported = any(hasattr(estimator, attr) for attr in _SKLEARN_ARRAY_ATTRS)
     if not supported:
         raise NotImplementedError(
@@ -880,12 +157,12 @@ def _arrays_from_estimator(
             f"and Pipelines of those are supported."
         )
 
+    result: dict[str, np.ndarray] = {}
     for attr in _SKLEARN_ARRAY_ATTRS:
         if hasattr(estimator, attr):
             val = getattr(estimator, attr)
-            arrays[f"{prefix}{attr}"] = np.asarray(val)
-
-    return arrays
+            result[f"{prefix}{attr}"] = np.asarray(val)
+    return result
 
 
 def _restore_estimator_arrays(
@@ -903,279 +180,16 @@ def _restore_estimator_arrays(
             )
         return
 
-    if isinstance(estimator, (_RandomForest, _GradientBoosting)):
-        assert fitted_state is not None, (
-            "Tree ensemble restoration requires fitted_state"
-        )
-        _restore_tree_ensemble(estimator, arrays, fitted_state, prefix)  # type: ignore[arg-type]
-        return
+    for handler in _get_handlers():
+        if handler.handles(estimator):
+            handler.restore_arrays(estimator, arrays, prefix, fitted_state)
+            return
 
-    if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
-        assert fitted_state is not None
-        estimator.tree_ = _make_tree(  # type: ignore[attr-defined]
-            arrays, fitted_state, f"{prefix}_tree/"
-        )
-        for attr in ("n_features_in_", "n_outputs_", "n_classes_"):
-            key = f"{prefix}{attr}"
-            if key in fitted_state:
-                setattr(estimator, attr, fitted_state[key])
-        classes_key = f"{prefix}classes_"
-        if classes_key in arrays:
-            estimator.classes_ = arrays[classes_key]  # type: ignore[attr-defined]
-        return
-
-    if isinstance(estimator, TransformedTargetRegressor):
-        from sklearn.base import clone
-
-        reg_prefix = f"{prefix}regressor_/"
-        if any(k.startswith(reg_prefix) for k in arrays):
-            if not hasattr(estimator, "regressor_"):
-                estimator.regressor_ = clone(estimator.regressor)
-            _restore_estimator_arrays(
-                cast(BaseEstimator, estimator.regressor_),
-                arrays,
-                prefix=reg_prefix,
-            )
-        tr_prefix = f"{prefix}transformer_/"
-        if any(k.startswith(tr_prefix) for k in arrays):
-            if not hasattr(estimator, "transformer_"):
-                template = (
-                    estimator.transformer
-                    if estimator.transformer is not None
-                    else StandardScaler()
-                )
-                estimator.transformer_ = clone(template)
-            _restore_estimator_arrays(
-                cast(BaseEstimator, estimator.transformer_),
-                arrays,
-                prefix=tr_prefix,
-            )
-        return
-
-    if isinstance(estimator, (MLPRegressor, MLPClassifier)):
-        coefs = []
-        intercepts = []
-        i = 0
-        while f"{prefix}coefs_{i}" in arrays:
-            coefs.append(arrays[f"{prefix}coefs_{i}"])
-            i += 1
-        i = 0
-        while f"{prefix}intercepts_{i}" in arrays:
-            intercepts.append(arrays[f"{prefix}intercepts_{i}"])
-            i += 1
-        if coefs:
-            estimator.coefs_ = coefs
-        if intercepts:
-            estimator.intercepts_ = intercepts
-        return
-
-    if isinstance(estimator, GaussianProcessRegressor):
-        for attr in (
-            "X_train_",
-            "alpha_",
-            "L_",
-            "_y_train_mean",
-            "_y_train_std",
-        ):
-            key = f"{prefix}{attr}"
-            if key in arrays:
-                val = arrays[key]
-                if attr in ("_y_train_mean", "_y_train_std") and val.ndim == 0:
-                    setattr(estimator, attr, val.item())
-                else:
-                    setattr(estimator, attr, val)
-        return
-
-    if isinstance(estimator, GaussianProcessClassifier):
-        classes_key = f"{prefix}classes_"
-        if classes_key in arrays:
-            estimator.classes_ = arrays[classes_key]
-        be_prefix = f"{prefix}base_estimator_/"
-        any_be_array = any(k.startswith(be_prefix) for k in arrays)
-        if any_be_array:
-            if not hasattr(estimator, "base_estimator_"):
-                from sklearn.gaussian_process._gpc import (
-                    _BinaryGaussianProcessClassifierLaplace,
-                )
-
-                estimator.base_estimator_ = _BinaryGaussianProcessClassifierLaplace(
-                    kernel=estimator.kernel,
-                    optimizer=estimator.optimizer,
-                    n_restarts_optimizer=estimator.n_restarts_optimizer,
-                    max_iter_predict=estimator.max_iter_predict,
-                    warm_start=estimator.warm_start,
-                    copy_X_train=estimator.copy_X_train,
-                    random_state=estimator.random_state,
-                )
-            _restore_estimator_arrays(
-                estimator.base_estimator_, arrays, prefix=be_prefix
-            )
-        return
-
-    if isinstance(
-        estimator,
-        HistGradientBoostingClassifier | HistGradientBoostingRegressor,
-    ):
-        from sklearn.ensemble._hist_gradient_boosting.binning import (
-            _BinMapper,  # type: ignore[attr-defined]
-        )
-        from sklearn.ensemble._hist_gradient_boosting.predictor import (
-            TreePredictor,  # type: ignore[attr-defined]
-        )
-        from sklearn.preprocessing import LabelEncoder
-
-        assert fitted_state is not None, "HGB restoration requires fitted_state"
-
-        for attr in (
-            "n_trees_per_iteration_",
-            "do_early_stopping_",
-            "n_features_in_",
-        ):
-            key = f"{prefix}{attr}"
-            if key in fitted_state:
-                setattr(estimator, attr, fitted_state[key])
-        if f"{prefix}_random_seed" in fitted_state:
-            estimator._random_seed = np.uint64(  # type: ignore[attr-defined]
-                fitted_state[f"{prefix}_random_seed"]
-            )
-
-        for attr in (
-            "classes_",
-            "train_score_",
-            "validation_score_",
-            "_baseline_prediction",
-        ):
-            key = f"{prefix}{attr}"
-            if key in arrays:
-                setattr(estimator, attr, arrays[key])
-        if isinstance(estimator, HistGradientBoostingClassifier) and hasattr(
-            estimator, "classes_"
-        ):
-            estimator.n_classes_ = len(estimator.classes_)  # type: ignore[attr-defined]
-
-        bm = _BinMapper(
-            n_bins=fitted_state[f"{prefix}_bin_mapper/n_bins"],
-            subsample=fitted_state[f"{prefix}_bin_mapper/subsample"],
-            random_state=fitted_state[f"{prefix}_bin_mapper/random_state"],
-            n_threads=fitted_state[f"{prefix}_bin_mapper/n_threads"],
-        )
-        bm.missing_values_bin_idx_ = fitted_state[
-            f"{prefix}_bin_mapper/missing_values_bin_idx_"
-        ]
-        bm.is_categorical = None  # type: ignore[attr-defined]
-        bm.known_categories = None  # type: ignore[attr-defined]
-        n_features: int = fitted_state[f"{prefix}_bin_mapper/n_features_"]
-        bm.bin_thresholds_ = [
-            arrays[f"{prefix}_bin_mapper/bin_thresholds_{k}"] for k in range(n_features)
-        ]
-        bm.is_categorical_ = arrays[f"{prefix}_bin_mapper/is_categorical_"]
-        bm.n_bins_non_missing_ = arrays[f"{prefix}_bin_mapper/n_bins_non_missing_"]
-        estimator._bin_mapper = bm  # type: ignore[attr-defined]
-
-        le_key = f"{prefix}_label_encoder/classes_"
-        if le_key in arrays:
-            le = LabelEncoder()
-            le.classes_ = arrays[le_key]
-            estimator._label_encoder = le  # type: ignore[attr-defined]
-        else:
-            estimator._label_encoder = None  # type: ignore[attr-defined]
-
-        dtype_spec = fitted_state.get(f"{prefix}_predictors_node_dtype")
-        if dtype_spec is not None:
-            node_dtype: np.dtype = np.dtype(
-                [(name, dtype_str) for name, dtype_str in dtype_spec]
-            )
-        else:
-            node_dtype = np.dtype(
-                [
-                    ("value", "<f8"),
-                    ("count", "<u4"),
-                    ("feature_idx", "<i8"),
-                    ("num_threshold", "<f8"),
-                    ("missing_go_to_left", "u1"),
-                    ("left", "<u4"),
-                    ("right", "<u4"),
-                    ("gain", "<f8"),
-                    ("depth", "<u4"),
-                    ("is_leaf", "u1"),
-                    ("bin_threshold", "u1"),
-                    ("is_categorical", "u1"),
-                    ("bitset_idx", "<u4"),
-                ]
-            )
-        predictors_shape: list[int] = fitted_state[f"{prefix}_predictors_shape"]
-        assert node_dtype.names is not None
-        predictors = []
-        for i, n_trees in enumerate(predictors_shape):
-            pred_list = []
-            for j in range(n_trees):
-                pprefix = f"{prefix}_predictors/{i}/{j}/"
-                first_field = node_dtype.names[0]
-                n_nodes = arrays[f"{pprefix}nodes_{first_field}"].shape[0]
-                nodes = np.empty(n_nodes, dtype=node_dtype)
-                for field in node_dtype.names:
-                    nodes[field] = arrays[f"{pprefix}nodes_{field}"]
-                pred = TreePredictor(
-                    nodes,
-                    arrays[f"{pprefix}binned_left_cat_bitsets"],
-                    arrays[f"{pprefix}raw_left_cat_bitsets"],
-                )
-                pred_list.append(pred)
-            predictors.append(pred_list)
-        estimator._predictors = predictors  # type: ignore[attr-defined]
-
-        estimator._loss = estimator._get_loss(sample_weight=None)  # type: ignore[attr-defined]
-        estimator._preprocessor = None  # type: ignore[attr-defined]
-        estimator._scorer = None  # type: ignore[attr-defined]
-        estimator._use_validation_data = False  # type: ignore[attr-defined]
-        if isinstance(estimator, HistGradientBoostingClassifier):
-            estimator._is_categorical_remapped = None  # type: ignore[attr-defined]
-            estimator.is_categorical_ = None  # type: ignore[attr-defined]
-        return
-
+    # Generic fallback for linear models, scalers, etc.
     for attr in _SKLEARN_ARRAY_ATTRS:
         key = f"{prefix}{attr}"
         if key in arrays:
             setattr(estimator, attr, arrays[key])
-
-
-def _rebuild_estimator_from_params(params: dict[str, Any]) -> BaseEstimator:
-    """Instantiate a sklearn estimator tree from a params dict."""
-    params = dict(params)
-    type_path: str = params.pop("type")
-    module_path, _, class_name = type_path.rpartition(".")
-    cls = getattr(importlib.import_module(module_path), class_name)
-
-    is_pipeline = issubclass(cls, Pipeline)
-
-    init_params: dict[str, Any] = {}
-    for k, v in params.items():
-        if isinstance(v, dict) and "type" in v and "kernels." in v["type"]:
-            init_params[k] = _deserialize_kernel(v)
-        elif isinstance(v, dict) and "type" in v:
-            init_params[k] = _rebuild_estimator_from_params(v)
-        elif is_pipeline and k == "steps" and isinstance(v, dict):
-            init_params[k] = [
-                (name, _rebuild_estimator_from_params(step_params))
-                for name, step_params in v.items()
-            ]
-        elif isinstance(v, list):
-            rebuilt = []
-            for item in v:
-                if (
-                    isinstance(item, tuple)
-                    and len(item) == 2
-                    and isinstance(item[1], dict)
-                ):
-                    rebuilt.append((item[0], _rebuild_estimator_from_params(item[1])))
-                else:
-                    rebuilt.append(item)
-            init_params[k] = rebuilt
-        else:
-            init_params[k] = v
-
-    init_params = _fix_json_param_types(cls, init_params)
-    return cls(**init_params)
 
 
 # ---------------------------------------------------------------------------
@@ -1329,10 +343,14 @@ class SklearnModel:
         return _get_weights_from_estimator(self.model)
 
     def set_params(self, **params) -> SklearnModel:
+        from skeights._params import set_model_params
+
         set_model_params(self.model, params)
         return self
 
     def get_params(self) -> dict[str, Any]:
+        from skeights._params import get_model_params
+
         return get_model_params(self.model)
 
     def get_targets(self) -> list[str]:
@@ -1346,6 +364,8 @@ class SklearnModel:
 
     def get_state(self) -> dict:
         """Return JSON-safe config and fitted state for this model."""
+        from skeights._params import get_model_params
+
         params = get_model_params(self.model)
         if "type" not in params:
             params["type"] = get_sklearn_public_path(type(self.model))
@@ -1361,6 +381,8 @@ class SklearnModel:
     @classmethod
     def from_state(cls, state: dict, arrays: dict[str, np.ndarray]) -> Self:
         """Reconstruct a fitted SklearnModel from state and arrays."""
+        from skeights._params import _rebuild_estimator_from_params
+
         estimator = _rebuild_estimator_from_params(state["model_params"])
         fitted_state = state.get("fitted_state") or state.get("mlp_fitted_state", {})
         _restore_estimator_arrays(estimator, arrays, fitted_state=fitted_state or None)
@@ -1373,3 +395,31 @@ class SklearnModel:
         obj.use_predict_proba = bool(state.get("use_predict_proba", False))
         obj.is_fitted_ = True
         return obj
+
+
+# Re-export param functions at module level for backward compat with __init__.py
+def get_model_params(model: BaseEstimator) -> dict[str, Any]:
+    """Recursively extract hyperparameters from a fitted sklearn estimator."""
+    from skeights._params import get_model_params as _get_model_params
+
+    return _get_model_params(model)
+
+
+def set_model_params(model: BaseEstimator, params: dict[str, Any]) -> BaseEstimator:
+    """Recursively set hyperparameters on an sklearn estimator."""
+    from skeights._params import set_model_params as _set_model_params
+
+    return _set_model_params(model, params)
+
+
+# Re-export kernel functions for backward compatibility (tests import from _core).
+def _serialize_kernel(kernel: Any) -> dict[str, Any]:
+    from skeights._kernels import _serialize_kernel as _sk
+
+    return _sk(kernel)
+
+
+def _deserialize_kernel(data: dict[str, Any]) -> Any:
+    from skeights._kernels import _deserialize_kernel as _dk
+
+    return _dk(data)
