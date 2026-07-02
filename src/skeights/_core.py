@@ -21,9 +21,9 @@ from skeights._utils import SKLEARN_ARRAY_ATTRS as _SKLEARN_ARRAY_ATTRS
 
 def _get_handlers():
     """Lazy-load estimator handler modules to avoid circular imports."""
-    from skeights import _gp, _hgb, _mlp, _trees, _ttr
+    from skeights import _gp, _hgb, _lgbm, _mlp, _trees, _ttr
 
-    return [_trees, _ttr, _mlp, _gp, _hgb]
+    return [_trees, _ttr, _mlp, _gp, _hgb, _lgbm]
 
 
 # ---------------------------------------------------------------------------

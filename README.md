@@ -63,6 +63,7 @@ predictions = loaded.predict(X_test)
 - **RandomForestRegressor / Classifier**: full tree serialization
 - **GradientBoostingRegressor / Classifier**: including init estimator
 - **HistGradientBoostingRegressor / Classifier**: including bin mapper state
+- **LGBMRegressor / Classifier**: via booster model string
 - **GaussianProcessRegressor / Classifier**: including composite kernels
 - **TransformedTargetRegressor**: target scaling wrappers
 - **Scalers**: StandardScaler, MinMaxScaler, RobustScaler

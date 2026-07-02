@@ -32,8 +32,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+lightgbm = ["lightgbm"]
 dev = [
     "pytest",
+    "lightgbm",
     "ruff",
     "pyright",
 ]
