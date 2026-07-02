@@ -15,9 +15,16 @@ Pickle is the default way to save sklearn models, but it's:
 - **Fragile**: breaks across sklearn versions, Python versions, and platforms
 - **Opaque**: you can't inspect what's inside
 
-skeights decomposes a fitted estimator into two files:
-- **`.safetensors`**: numeric arrays (weights, fitted params) in a safe, fast format
-- **`.json`**: hyperparameters and scalar fitted state, human-readable
+[skops](https://github.com/skops-dev/skops) solves the security
+problem by replacing pickle with a safe binary format, but the
+output is still a single opaque blob; you can't easily inspect
+the hyperparameters or diff two versions of a model.
+
+skeights separates structure from weights:
+- **`.json`**: hyperparameters and scalar fitted state,
+  human-readable and diffable
+- **`.safetensors`**: numeric arrays (weights, fitted params)
+  in a safe, fast, widely-supported format
 
 ## Install
 
@@ -55,7 +62,10 @@ predictions = loaded.predict(X_test)
 - **Linear models**: Ridge, Lasso, LinearRegression, LogisticRegression, etc.
 - **MLPRegressor**: multi-layer perceptron
 - **GaussianProcessRegressor / Classifier**: including composite kernels
+- **RandomForestRegressor / Classifier**: full tree serialization
+- **GradientBoostingRegressor / Classifier**: including init estimator
 - **HistGradientBoostingRegressor / Classifier**: including bin mapper state
+- **TransformedTargetRegressor**: target scaling wrappers
 - **Scalers**: StandardScaler, MinMaxScaler, RobustScaler
 - **Pipelines**: any Pipeline composed of supported estimators
 
