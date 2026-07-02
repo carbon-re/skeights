@@ -35,9 +35,7 @@ def handles(estimator: BaseEstimator) -> bool:
     return _is_lgbm(estimator)
 
 
-def collect_state(
-    estimator: BaseEstimator, prefix: str
-) -> dict[str, Any]:
+def collect_state(estimator: BaseEstimator, prefix: str) -> dict[str, Any]:
     state: dict[str, Any] = {}
     state[f"{prefix}model_str"] = estimator._Booster.model_to_string()  # type: ignore[attr-defined]
     state[f"{prefix}n_features"] = estimator._n_features  # type: ignore[attr-defined]
@@ -82,9 +80,7 @@ def restore_state(
         estimator._le = le  # type: ignore[attr-defined]
 
 
-def extract_arrays(
-    estimator: BaseEstimator, prefix: str
-) -> dict[str, np.ndarray]:
+def extract_arrays(estimator: BaseEstimator, prefix: str) -> dict[str, np.ndarray]:
     # Model string goes in state; arrays only has feature importances
     arrays: dict[str, np.ndarray] = {}
     if hasattr(estimator, "feature_importances_"):

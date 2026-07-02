@@ -36,14 +36,10 @@ def handles(estimator: BaseEstimator) -> bool:
     return _is_xgb(estimator)
 
 
-def collect_state(
-    estimator: BaseEstimator, prefix: str
-) -> dict[str, Any]:
+def collect_state(estimator: BaseEstimator, prefix: str) -> dict[str, Any]:
     state: dict[str, Any] = {}
     booster = estimator.get_booster()  # type: ignore[attr-defined]
-    model_json = json.loads(
-        booster.save_raw(raw_format="json").decode()
-    )
+    model_json = json.loads(booster.save_raw(raw_format="json").decode())
     state[f"{prefix}model_json"] = model_json
 
     if _is_classifier(estimator):
@@ -69,9 +65,7 @@ def restore_state(
         estimator.n_classes_ = fitted_state[f"{prefix}n_classes"]  # type: ignore[attr-defined]
 
 
-def extract_arrays(
-    estimator: BaseEstimator, prefix: str
-) -> dict[str, np.ndarray]:
+def extract_arrays(estimator: BaseEstimator, prefix: str) -> dict[str, np.ndarray]:
     # Model lives in JSON state; arrays only has feature importances
     arrays: dict[str, np.ndarray] = {}
     if hasattr(estimator, "feature_importances_"):
