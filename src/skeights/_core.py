@@ -33,7 +33,7 @@ from sklearn.gaussian_process import (
     GaussianProcessRegressor,
 )
 from sklearn.gaussian_process.kernels import Kernel
-from sklearn.neural_network import MLPRegressor
+from sklearn.neural_network import MLPClassifier, MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import MinMaxScaler, RobustScaler
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
@@ -585,6 +585,15 @@ def _collect_fitted_state(estimator: BaseEstimator, prefix: str = "") -> dict[st
     if isinstance(estimator, (_RandomForest, _GradientBoosting)):
         return _state_from_tree_ensemble(estimator, prefix)  # type: ignore[arg-type]
 
+    if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
+        state.update(_state_from_tree(estimator.tree_, f"{prefix}_tree/"))
+        for attr in ("n_features_in_", "n_outputs_", "n_classes_"):
+            if hasattr(estimator, attr):
+                state[f"{prefix}{attr}"] = getattr(estimator, attr)
+        if hasattr(estimator, "classes_"):
+            pass  # stored as array
+        return state
+
     if isinstance(estimator, TransformedTargetRegressor):
         if hasattr(estimator, "_training_dim"):
             state[f"{prefix}_training_dim"] = estimator._training_dim
@@ -604,7 +613,7 @@ def _collect_fitted_state(estimator: BaseEstimator, prefix: str = "") -> dict[st
             )
         return state
 
-    if isinstance(estimator, MLPRegressor):
+    if isinstance(estimator, (MLPRegressor, MLPClassifier)):
         for attr in _MLP_FITTED_STATE_ATTRS:
             if hasattr(estimator, attr):
                 state[f"{prefix}{attr}"] = getattr(estimator, attr)
@@ -686,8 +695,16 @@ def _restore_fitted_state(
             _restore_fitted_state(step, fitted_state, prefix=step_prefix)
         return
 
-    # Tree ensembles are fully handled by _restore_tree_ensemble in the arrays path.
-    if isinstance(estimator, (_RandomForest, _GradientBoosting)):
+    # Tree ensembles and standalone trees are handled in the arrays path.
+    if isinstance(
+        estimator,
+        (
+            _RandomForest,
+            _GradientBoosting,
+            DecisionTreeRegressor,
+            DecisionTreeClassifier,
+        ),
+    ):
         return
 
     if isinstance(estimator, TransformedTargetRegressor):
@@ -708,7 +725,7 @@ def _restore_fitted_state(
             )
         return
 
-    if isinstance(estimator, MLPRegressor):
+    if isinstance(estimator, (MLPRegressor, MLPClassifier)):
         for attr in _MLP_FITTED_STATE_ATTRS:
             key = f"{prefix}{attr}"
             if key in fitted_state:
@@ -757,6 +774,12 @@ def _arrays_from_estimator(
     if isinstance(estimator, (_RandomForest, _GradientBoosting)):
         return _arrays_from_tree_ensemble(estimator, prefix)  # type: ignore[arg-type]
 
+    if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
+        arrays.update(_arrays_from_tree(estimator.tree_, f"{prefix}_tree/"))
+        if hasattr(estimator, "classes_"):
+            arrays[f"{prefix}classes_"] = np.asarray(estimator.classes_)
+        return arrays
+
     if isinstance(estimator, TransformedTargetRegressor):
         if hasattr(estimator, "regressor_"):
             arrays.update(
@@ -774,7 +797,7 @@ def _arrays_from_estimator(
             )
         return arrays
 
-    if isinstance(estimator, MLPRegressor):
+    if isinstance(estimator, (MLPRegressor, MLPClassifier)):
         if hasattr(estimator, "coefs_"):
             for i, w in enumerate(estimator.coefs_):
                 arrays[f"{prefix}coefs_{i}"] = np.asarray(w)
@@ -887,6 +910,20 @@ def _restore_estimator_arrays(
         _restore_tree_ensemble(estimator, arrays, fitted_state, prefix)  # type: ignore[arg-type]
         return
 
+    if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
+        assert fitted_state is not None
+        estimator.tree_ = _make_tree(  # type: ignore[attr-defined]
+            arrays, fitted_state, f"{prefix}_tree/"
+        )
+        for attr in ("n_features_in_", "n_outputs_", "n_classes_"):
+            key = f"{prefix}{attr}"
+            if key in fitted_state:
+                setattr(estimator, attr, fitted_state[key])
+        classes_key = f"{prefix}classes_"
+        if classes_key in arrays:
+            estimator.classes_ = arrays[classes_key]  # type: ignore[attr-defined]
+        return
+
     if isinstance(estimator, TransformedTargetRegressor):
         from sklearn.base import clone
 
@@ -915,7 +952,7 @@ def _restore_estimator_arrays(
             )
         return
 
-    if isinstance(estimator, MLPRegressor):
+    if isinstance(estimator, (MLPRegressor, MLPClassifier)):
         coefs = []
         intercepts = []
         i = 0

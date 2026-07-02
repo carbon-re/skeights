@@ -13,7 +13,8 @@ from sklearn.gaussian_process import (
     GaussianProcessRegressor,
 )
 from sklearn.gaussian_process.kernels import RBF, Matern, Product, Sum, WhiteKernel
-from sklearn.neural_network import MLPRegressor
+from sklearn.neural_network import MLPClassifier, MLPRegressor
+from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 import skeights
 from skeights import SklearnModel, SklearnScaler
@@ -100,6 +101,45 @@ def test_mlp_round_trip(regression_data, use_pipeline: bool):
             hidden_layer_sizes=(4,), activation="relu", random_state=0, max_iter=1000
         )
     model = SklearnModel(inner)
+    model.fit(X, y)
+    restored = _round_trip(model)
+    np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# MLPClassifier round-trip
+# ---------------------------------------------------------------------------
+
+
+def test_mlp_classifier_round_trip(binary_data):
+    X, y = binary_data
+    model = SklearnModel(
+        MLPClassifier(hidden_layer_sizes=(4,), random_state=0, max_iter=500),
+        use_predict_proba=True,
+    )
+    model.fit(X, y)
+    restored = _round_trip(model)
+    np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
+
+
+# ---------------------------------------------------------------------------
+# DecisionTree round-trips
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "estimator, use_regression",
+    [
+        (DecisionTreeRegressor(max_depth=3, random_state=0), True),
+        (DecisionTreeClassifier(max_depth=3, random_state=0), False),
+    ],
+    ids=["regressor", "classifier"],
+)
+def test_decision_tree_round_trip(
+    estimator, use_regression, regression_data, binary_data
+):
+    X, y = regression_data if use_regression else binary_data
+    model = SklearnModel(estimator)
     model.fit(X, y)
     restored = _round_trip(model)
     np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
