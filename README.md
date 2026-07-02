@@ -64,6 +64,7 @@ predictions = loaded.predict(X_test)
 - **GradientBoostingRegressor / Classifier**: including init estimator
 - **HistGradientBoostingRegressor / Classifier**: including bin mapper state
 - **LGBMRegressor / Classifier**: via booster model string
+- **XGBRegressor / Classifier**: via booster JSON
 - **GaussianProcessRegressor / Classifier**: including composite kernels
 - **TransformedTargetRegressor**: target scaling wrappers
 - **Scalers**: StandardScaler, MinMaxScaler, RobustScaler
