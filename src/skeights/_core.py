@@ -12,12 +12,13 @@ from __future__ import annotations
 
 import importlib
 import warnings
-from typing import Any, Self
+from typing import Any, Self, cast
 
 import numpy as np
 import pandas as pd
 import sklearn
 from sklearn.base import BaseEstimator
+from sklearn.compose import TransformedTargetRegressor
 from sklearn.discriminant_analysis import StandardScaler
 from sklearn.ensemble import (
     HistGradientBoostingClassifier,
@@ -184,6 +185,15 @@ def get_model_params(model: BaseEstimator) -> dict[str, Any]:
 def set_model_params(model: BaseEstimator, params: dict[str, Any]) -> BaseEstimator:
     """Recursively set hyperparameters on an sklearn estimator."""
     params.pop("type", None)
+    # Make TransformedTargetRegressor transparent to dotted-path param setting:
+    # route params to the wrapped regressor so callers don't need to know about
+    # the target scaler. When the params *do* address the wrapper explicitly
+    # (e.g. a serialised state carrying "regressor"/"transformer"), fall through.
+    if isinstance(model, TransformedTargetRegressor) and not (
+        {"regressor", "transformer"} & set(params)
+    ):
+        set_model_params(cast(BaseEstimator, model.regressor), params)
+        return model
     keys = list(params.keys())
     for key in keys:
         if hasattr(model, f"named_{key}"):
@@ -303,6 +313,25 @@ def _collect_fitted_state(estimator: BaseEstimator, prefix: str = "") -> dict[st
             state.update(_collect_fitted_state(step, prefix=step_prefix))
         return state
 
+    if isinstance(estimator, TransformedTargetRegressor):
+        if hasattr(estimator, "_training_dim"):
+            state[f"{prefix}_training_dim"] = estimator._training_dim
+        if hasattr(estimator, "regressor_"):
+            state.update(
+                _collect_fitted_state(
+                    cast(BaseEstimator, estimator.regressor_),
+                    prefix=f"{prefix}regressor_/",
+                )
+            )
+        if hasattr(estimator, "transformer_"):
+            state.update(
+                _collect_fitted_state(
+                    cast(BaseEstimator, estimator.transformer_),
+                    prefix=f"{prefix}transformer_/",
+                )
+            )
+        return state
+
     if isinstance(estimator, MLPRegressor):
         for attr in _MLP_FITTED_STATE_ATTRS:
             if hasattr(estimator, attr):
@@ -385,6 +414,24 @@ def _restore_fitted_state(
             _restore_fitted_state(step, fitted_state, prefix=step_prefix)
         return
 
+    if isinstance(estimator, TransformedTargetRegressor):
+        key = f"{prefix}_training_dim"
+        if key in fitted_state:
+            estimator._training_dim = fitted_state[key]
+        if hasattr(estimator, "regressor_"):
+            _restore_fitted_state(
+                cast(BaseEstimator, estimator.regressor_),
+                fitted_state,
+                prefix=f"{prefix}regressor_/",
+            )
+        if hasattr(estimator, "transformer_"):
+            _restore_fitted_state(
+                cast(BaseEstimator, estimator.transformer_),
+                fitted_state,
+                prefix=f"{prefix}transformer_/",
+            )
+        return
+
     if isinstance(estimator, MLPRegressor):
         for attr in _MLP_FITTED_STATE_ATTRS:
             key = f"{prefix}{attr}"
@@ -429,6 +476,23 @@ def _arrays_from_estimator(
         for step_name, step in estimator.named_steps.items():
             step_prefix = f"{prefix}{step_name}/" if prefix else f"{step_name}/"
             arrays.update(_arrays_from_estimator(step, prefix=step_prefix))
+        return arrays
+
+    if isinstance(estimator, TransformedTargetRegressor):
+        if hasattr(estimator, "regressor_"):
+            arrays.update(
+                _arrays_from_estimator(
+                    cast(BaseEstimator, estimator.regressor_),
+                    prefix=f"{prefix}regressor_/",
+                )
+            )
+        if hasattr(estimator, "transformer_"):
+            arrays.update(
+                _arrays_from_estimator(
+                    cast(BaseEstimator, estimator.transformer_),
+                    prefix=f"{prefix}transformer_/",
+                )
+            )
         return arrays
 
     if isinstance(estimator, MLPRegressor):
@@ -534,6 +598,34 @@ def _restore_estimator_arrays(
             step_prefix = f"{prefix}{step_name}/" if prefix else f"{step_name}/"
             _restore_estimator_arrays(
                 step, arrays, prefix=step_prefix, fitted_state=fitted_state
+            )
+        return
+
+    if isinstance(estimator, TransformedTargetRegressor):
+        from sklearn.base import clone
+
+        reg_prefix = f"{prefix}regressor_/"
+        if any(k.startswith(reg_prefix) for k in arrays):
+            if not hasattr(estimator, "regressor_"):
+                estimator.regressor_ = clone(estimator.regressor)
+            _restore_estimator_arrays(
+                cast(BaseEstimator, estimator.regressor_),
+                arrays,
+                prefix=reg_prefix,
+            )
+        tr_prefix = f"{prefix}transformer_/"
+        if any(k.startswith(tr_prefix) for k in arrays):
+            if not hasattr(estimator, "transformer_"):
+                template = (
+                    estimator.transformer
+                    if estimator.transformer is not None
+                    else StandardScaler()
+                )
+                estimator.transformer_ = clone(template)
+            _restore_estimator_arrays(
+                cast(BaseEstimator, estimator.transformer_),
+                arrays,
+                prefix=tr_prefix,
             )
         return
 
