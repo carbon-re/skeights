@@ -25,13 +25,30 @@ MODELS = [
     "mlp",
 ]
 
+OPTIONAL_MODELS = [
+    pytest.param(
+        "lgbm",
+        marks=pytest.mark.skipif(
+            not (FIXTURES_DIR / "lgbm.safetensors").exists(),
+            reason="lgbm fixtures not generated",
+        ),
+    ),
+    pytest.param(
+        "xgb",
+        marks=pytest.mark.skipif(
+            not (FIXTURES_DIR / "xgb.safetensors").exists(),
+            reason="xgb fixtures not generated",
+        ),
+    ),
+]
+
 
 @pytest.fixture
 def X_test() -> np.ndarray:
     return np.load(FIXTURES_DIR / "X_test.npy")
 
 
-@pytest.mark.parametrize("model_name", MODELS)
+@pytest.mark.parametrize("model_name", MODELS + OPTIONAL_MODELS)
 def test_golden_predictions(model_name: str, X_test: np.ndarray):
     loaded = skeights.load(
         FIXTURES_DIR / f"{model_name}.safetensors",

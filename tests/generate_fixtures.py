@@ -48,6 +48,20 @@ MODELS: dict[str, object] = {
     "mlp": MLPRegressor(hidden_layer_sizes=(8,), random_state=0, max_iter=500),
 }
 
+try:
+    import lightgbm as lgb
+
+    MODELS["lgbm"] = lgb.LGBMRegressor(n_estimators=5, max_depth=3, verbose=-1)
+except ImportError:
+    pass
+
+try:
+    import xgboost as xgb
+
+    MODELS["xgb"] = xgb.XGBRegressor(n_estimators=5, max_depth=3)
+except ImportError:
+    pass
+
 
 def main() -> None:
     FIXTURES_DIR.mkdir(exist_ok=True)
