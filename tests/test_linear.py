@@ -21,9 +21,7 @@ def test_linear_round_trip(regression_data):
     restored = round_trip(model)
     np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
     np.testing.assert_allclose(restored.coef_, model.coef_, atol=1e-15)
-    np.testing.assert_allclose(
-        restored.intercept_, model.intercept_, atol=1e-15
-    )
+    np.testing.assert_allclose(restored.intercept_, model.intercept_, atol=1e-15)
 
 
 def test_pipeline_round_trip(regression_data):
@@ -47,6 +45,31 @@ def test_scaler_round_trip(regression_data):
     np.testing.assert_allclose(scaler.transform(X), restored.transform(X), atol=1e-10)
     np.testing.assert_allclose(restored.mean_, scaler.mean_, atol=1e-15)
     np.testing.assert_allclose(restored.scale_, scaler.scale_, atol=1e-15)
+
+
+def test_linear_out_of_sample(regression_data_split):
+    X_train, y_train, X_test, _ = regression_data_split
+    model = linear_model.Ridge(alpha=0.1)
+    model.fit(X_train, y_train["y"])
+    restored = round_trip(model)
+    np.testing.assert_allclose(
+        model.predict(X_test), restored.predict(X_test), atol=1e-10
+    )
+
+
+def test_pipeline_out_of_sample(regression_data_split):
+    X_train, y_train, X_test, _ = regression_data_split
+    pipe = pipeline.Pipeline(
+        [
+            ("scaler", preprocessing.StandardScaler()),
+            ("model", linear_model.Ridge(alpha=0.1)),
+        ]
+    )
+    pipe.fit(X_train, y_train["y"])
+    restored = round_trip(pipe)
+    np.testing.assert_allclose(
+        pipe.predict(X_test), restored.predict(X_test), atol=1e-10
+    )
 
 
 def test_linear_arrays_contain_coef_and_intercept(regression_data):

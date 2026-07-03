@@ -57,6 +57,16 @@ def test_mlp_classifier_round_trip(binary_data):
         )
 
 
+def test_mlp_out_of_sample(regression_data_split):
+    X_train, y_train, X_test, _ = regression_data_split
+    model = MLPRegressor(hidden_layer_sizes=(8,), random_state=0, max_iter=500)
+    model.fit(X_train, y_train["y"])
+    restored = round_trip(model)
+    np.testing.assert_allclose(
+        model.predict(X_test), restored.predict(X_test), atol=1e-10
+    )
+
+
 def test_mlp_arrays_contain_layer_weights(regression_data):
     X, y = regression_data
     model = MLPRegressor(hidden_layer_sizes=(4, 3), random_state=0, max_iter=1)

@@ -28,6 +28,23 @@ def test_gpr_round_trip():
     np.testing.assert_allclose(restored.L_, model.L_, atol=1e-15)
 
 
+def test_gpr_out_of_sample():
+    rng = np.random.default_rng(42)
+    X = pd.DataFrame(rng.standard_normal((40, 2)), columns=["f0", "f1"])
+    y = np.sin(X["f0"]) + 0.1 * rng.standard_normal(40)
+    X_train, X_test = X.iloc[:30], X.iloc[30:]
+    y_train = y.iloc[:30]
+    model = GaussianProcessRegressor(
+        kernel=WhiteKernel(noise_level=0.1) + RBF(length_scale=1.0),
+        random_state=0,
+    )
+    model.fit(X_train, y_train)
+    restored = round_trip(model)
+    np.testing.assert_allclose(
+        model.predict(X_test), restored.predict(X_test), atol=1e-10
+    )
+
+
 def test_gpc_round_trip(binary_data):
     X, y = binary_data
     model = GaussianProcessClassifier(kernel=WhiteKernel() + RBF(), random_state=0)

@@ -70,6 +70,28 @@ def test_gradient_boosting_round_trip(estimator, regression_data, binary_data):
     np.testing.assert_allclose(estimator.predict(X), restored.predict(X), atol=1e-10)
 
 
+def test_rf_out_of_sample(regression_data_split):
+    X_train, y_train, X_test, _ = regression_data_split
+    model = ensemble.RandomForestRegressor(n_estimators=10, max_depth=5, random_state=0)
+    model.fit(X_train, y_train["y"])
+    restored = round_trip(model)
+    np.testing.assert_allclose(
+        model.predict(X_test), restored.predict(X_test), atol=1e-10
+    )
+
+
+def test_gb_out_of_sample(regression_data_split):
+    X_train, y_train, X_test, _ = regression_data_split
+    model = ensemble.GradientBoostingRegressor(
+        n_estimators=10, max_depth=3, random_state=0
+    )
+    model.fit(X_train, y_train["y"])
+    restored = round_trip(model)
+    np.testing.assert_allclose(
+        model.predict(X_test), restored.predict(X_test), atol=1e-10
+    )
+
+
 def test_rf_arrays_contain_tree_nodes(regression_data):
     X, y = regression_data
     model = ensemble.RandomForestRegressor(n_estimators=3, max_depth=2, random_state=0)

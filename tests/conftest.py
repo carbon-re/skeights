@@ -26,11 +26,31 @@ def regression_data() -> tuple[pd.DataFrame, pd.DataFrame]:
 
 
 @pytest.fixture
+def regression_data_split() -> tuple[
+    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
+]:
+    rng = np.random.default_rng(0)
+    X = pd.DataFrame(rng.standard_normal((80, 2)), columns=["f0", "f1"])
+    y = pd.DataFrame({"y": X["f0"] * 0.3 + X["f1"] * 0.7})
+    return X.iloc[:60], y.iloc[:60], X.iloc[60:], y.iloc[60:]
+
+
+@pytest.fixture
 def binary_data() -> tuple[pd.DataFrame, pd.DataFrame]:
     rng = np.random.default_rng(42)
     X = pd.DataFrame(rng.standard_normal((40, 3)), columns=["f0", "f1", "f2"])
     y = pd.DataFrame({"label": (X["f0"] + X["f1"] > 0).astype(int)})
     return X, y
+
+
+@pytest.fixture
+def binary_data_split() -> tuple[
+    pd.DataFrame, pd.DataFrame, pd.DataFrame, pd.DataFrame
+]:
+    rng = np.random.default_rng(42)
+    X = pd.DataFrame(rng.standard_normal((80, 3)), columns=["f0", "f1", "f2"])
+    y = pd.DataFrame({"label": (X["f0"] + X["f1"] > 0).astype(int)})
+    return X.iloc[:60], y.iloc[:60], X.iloc[60:], y.iloc[60:]
 
 
 def round_trip(estimator: BaseEstimator) -> BaseEstimator:
