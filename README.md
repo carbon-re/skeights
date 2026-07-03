@@ -70,6 +70,16 @@ predictions = loaded.predict(X_test)
 - **Scalers**: StandardScaler, MinMaxScaler, RobustScaler
 - **Pipelines**: any Pipeline composed of supported estimators
 
+## Compatibility
+
+skeights requires scikit-learn >= 1.5 and tests against 1.5,
+1.6, and latest in CI. Saved models are forward-compatible on
+a best-effort basis: we test loading sklearn 1.5 fixtures on
+newer versions, but don't guarantee cross-version compatibility.
+
+When loading a model saved with a different sklearn version,
+skeights will emit a warning.
+
 ## License
 
 MIT

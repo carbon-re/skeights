@@ -1,4 +1,7 @@
 {
+  "skeights_version": {
+    "sklearn": "1.5.2"
+  },
   "model_params": {
     "alpha": 0.1,
     "copy_X": true,

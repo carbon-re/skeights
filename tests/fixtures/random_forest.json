@@ -1,4 +1,7 @@
 {
+  "skeights_version": {
+    "sklearn": "1.5.2"
+  },
   "model_params": {
     "bootstrap": true,
     "ccp_alpha": 0.0,

@@ -1,4 +1,7 @@
 {
+  "skeights_version": {
+    "sklearn": "1.5.2"
+  },
   "model_params": {
     "memory": null,
     "steps": {

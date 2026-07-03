@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import warnings
 from pathlib import Path
 
 import safetensors.numpy
+import sklearn
 from sklearn.base import BaseEstimator
 
 from skeights._core import (
@@ -38,6 +40,9 @@ def save(
     if "type" not in params:
         params["type"] = get_sklearn_public_path(type(estimator))
     state = {
+        "skeights_version": {
+            "sklearn": sklearn.__version__,
+        },
         "model_params": params,
         "fitted_state": _collect_fitted_state(estimator),
     }
@@ -60,6 +65,20 @@ def load(
     """
     state = json.loads(Path(state_path).read_text())
     arrays = dict(safetensors.numpy.load_file(str(arrays_path)))
+
+    saved_versions = state.get("skeights_version", {})
+    saved_sklearn = saved_versions.get("sklearn")
+    if saved_sklearn:
+        saved_major_minor = ".".join(saved_sklearn.split(".")[:2])
+        current_major_minor = ".".join(sklearn.__version__.split(".")[:2])
+        if saved_major_minor != current_major_minor:
+            warnings.warn(
+                f"Model was saved with scikit-learn {saved_sklearn} "
+                f"but you are loading with {sklearn.__version__}. "
+                f"Predictions may differ.",
+                stacklevel=2,
+            )
+
     estimator = _rebuild_estimator_from_params(state["model_params"])
     fitted_state = state.get("fitted_state", {})
     _restore_estimator_arrays(estimator, arrays, fitted_state=fitted_state or None)
