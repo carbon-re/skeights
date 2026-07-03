@@ -28,6 +28,9 @@ def test_decision_tree_round_trip(
     estimator.fit(X, target)
     restored = round_trip(estimator)
     np.testing.assert_allclose(estimator.predict(X), restored.predict(X), atol=1e-10)
+    # Verify tree structure matches
+    assert restored.tree_.node_count == estimator.tree_.node_count
+    assert restored.tree_.max_depth == estimator.tree_.max_depth
 
 
 @pytest.mark.parametrize(
@@ -44,6 +47,9 @@ def test_random_forest_round_trip(estimator, regression_data, binary_data):
     estimator.fit(X, y.iloc[:, 0])
     restored = round_trip(estimator)
     np.testing.assert_allclose(estimator.predict(X), restored.predict(X), atol=1e-10)
+    assert len(restored.estimators_) == len(estimator.estimators_)
+    for orig_tree, rest_tree in zip(estimator.estimators_, restored.estimators_):
+        assert rest_tree.tree_.node_count == orig_tree.tree_.node_count
 
 
 @pytest.mark.parametrize(

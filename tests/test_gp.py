@@ -24,6 +24,8 @@ def test_gpr_round_trip():
     model.fit(X, y)
     restored = round_trip(model)
     np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
+    np.testing.assert_allclose(restored.alpha_, model.alpha_, atol=1e-15)
+    np.testing.assert_allclose(restored.L_, model.L_, atol=1e-15)
 
 
 def test_gpc_round_trip(binary_data):

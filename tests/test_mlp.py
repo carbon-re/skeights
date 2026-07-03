@@ -50,6 +50,11 @@ def test_mlp_classifier_round_trip(binary_data):
     np.testing.assert_allclose(
         model.predict_proba(X), restored.predict_proba(X), atol=1e-10
     )
+    for i in range(len(model.coefs_)):
+        np.testing.assert_allclose(restored.coefs_[i], model.coefs_[i], atol=1e-15)
+        np.testing.assert_allclose(
+            restored.intercepts_[i], model.intercepts_[i], atol=1e-15
+        )
 
 
 def test_mlp_arrays_contain_layer_weights(regression_data):

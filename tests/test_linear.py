@@ -20,6 +20,10 @@ def test_linear_round_trip(regression_data):
     model.fit(X, y["y"])
     restored = round_trip(model)
     np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
+    np.testing.assert_allclose(restored.coef_, model.coef_, atol=1e-15)
+    np.testing.assert_allclose(
+        restored.intercept_, model.intercept_, atol=1e-15
+    )
 
 
 def test_pipeline_round_trip(regression_data):
@@ -41,6 +45,8 @@ def test_scaler_round_trip(regression_data):
     scaler.fit(X)
     restored = round_trip(scaler)
     np.testing.assert_allclose(scaler.transform(X), restored.transform(X), atol=1e-10)
+    np.testing.assert_allclose(restored.mean_, scaler.mean_, atol=1e-15)
+    np.testing.assert_allclose(restored.scale_, scaler.scale_, atol=1e-15)
 
 
 def test_linear_arrays_contain_coef_and_intercept(regression_data):

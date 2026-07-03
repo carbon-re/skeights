@@ -21,6 +21,11 @@ def test_hgb_regressor_round_trip():
     model.fit(X, y)
     restored = round_trip(model)
     np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
+    np.testing.assert_allclose(
+        restored._baseline_prediction,  # type: ignore[attr-defined]
+        model._baseline_prediction,  # type: ignore[attr-defined]
+        atol=1e-15,
+    )
 
 
 def test_hgb_classifier_round_trip(binary_data):
