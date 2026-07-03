@@ -38,6 +38,8 @@ def _get_current_version(pkg: str) -> str | None:
 def _warn_version_mismatch(saved_versions: dict[str, str]) -> None:
     """Warn if any saved package version differs from the current one."""
     for pkg, saved_ver in saved_versions.items():
+        if pkg == "skeights":
+            continue
         current_ver = _get_current_version(pkg)
         if current_ver is None:
             continue
@@ -68,7 +70,12 @@ def save(
     params = get_model_params(estimator)
     if "type" not in params:
         params["type"] = get_sklearn_public_path(type(estimator))
-    versions: dict[str, str] = {"sklearn": sklearn.__version__}
+    from skeights import __version__
+
+    versions: dict[str, str] = {
+        "skeights": __version__,
+        "sklearn": sklearn.__version__,
+    }
     try:
         import lightgbm
 
