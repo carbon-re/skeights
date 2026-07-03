@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.0
+
+- Add `serialize()` / `deserialize()` for in-memory round-trips
+  (no file I/O required)
+- `save()` / `load()` are now thin wrappers around these
+
 ## 0.1.1
 
 - Fix logo not rendering on PyPI (use absolute URL)

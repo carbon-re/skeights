@@ -5,7 +5,9 @@ from __future__ import annotations
 import json
 import warnings
 from pathlib import Path
+from typing import Any
 
+import numpy as np
 import safetensors.numpy
 import sklearn
 from sklearn.base import BaseEstimator
@@ -54,22 +56,51 @@ def _warn_version_mismatch(saved_versions: dict[str, str]) -> None:
             )
 
 
-def save(
+def serialize(
     estimator: BaseEstimator,
-    arrays_path: str | Path,
-    state_path: str | Path,
-) -> None:
-    """Serialize a fitted sklearn estimator to safetensors + JSON.
+) -> tuple[dict[str, Any], dict[str, np.ndarray]]:
+    """Serialize a fitted estimator to a state dict and arrays dict.
 
     Args:
-        estimator: A fitted sklearn estimator (Pipeline, Ridge, etc.).
-        arrays_path: Destination path for the safetensors weight file.
-        state_path: Destination path for the JSON state file.
+        estimator: A fitted sklearn estimator.
+
+    Returns:
+        A tuple of (state_dict, arrays_dict).
     """
     arrays = _arrays_from_estimator(estimator)
     params = get_model_params(estimator)
     if "type" not in params:
         params["type"] = get_sklearn_public_path(type(estimator))
+    state: dict[str, Any] = {
+        "model_params": params,
+        "fitted_state": _collect_fitted_state(estimator),
+    }
+    return state, arrays
+
+
+def deserialize(
+    state: dict[str, Any],
+    arrays: dict[str, np.ndarray],
+) -> BaseEstimator:
+    """Reconstruct a fitted estimator from a state dict and arrays dict.
+
+    Args:
+        state: Dict as returned by :func:`serialize`.
+        arrays: Dict of numpy arrays as returned by :func:`serialize`.
+
+    Returns:
+        A fully reconstructed, ready-to-predict estimator.
+    """
+    estimator = _rebuild_estimator_from_params(state["model_params"])
+    fitted_state = state.get("fitted_state", {})
+    _restore_estimator_arrays(estimator, arrays, fitted_state=fitted_state or None)
+    if fitted_state:
+        _restore_fitted_state(estimator, fitted_state)
+    return estimator
+
+
+def _version_info(estimator: BaseEstimator) -> dict[str, str]:
+    """Collect version info for the estimator's dependencies."""
     from skeights import __version__
 
     versions: dict[str, str] = {
@@ -90,11 +121,23 @@ def save(
             versions["xgboost"] = xgboost.__version__
     except ImportError:
         pass
-    state = {
-        "skeights_version": versions,
-        "model_params": params,
-        "fitted_state": _collect_fitted_state(estimator),
-    }
+    return versions
+
+
+def save(
+    estimator: BaseEstimator,
+    arrays_path: str | Path,
+    state_path: str | Path,
+) -> None:
+    """Serialize a fitted estimator to safetensors + JSON files.
+
+    Args:
+        estimator: A fitted sklearn estimator.
+        arrays_path: Destination path for the safetensors weight file.
+        state_path: Destination path for the JSON state file.
+    """
+    state, arrays = serialize(estimator)
+    state["skeights_version"] = _version_info(estimator)
     safetensors.numpy.save_file(arrays, str(arrays_path))
     Path(state_path).write_text(json.dumps(state, indent=2, default=json_default))
 
@@ -103,24 +146,17 @@ def load(
     arrays_path: str | Path,
     state_path: str | Path,
 ) -> BaseEstimator:
-    """Reconstruct a fitted sklearn estimator from safetensors + JSON.
+    """Reconstruct a fitted estimator from safetensors + JSON files.
 
     Args:
         arrays_path: Path to the safetensors weight file.
         state_path: Path to the JSON state file.
 
     Returns:
-        A fully reconstructed, ready-to-predict sklearn estimator.
+        A fully reconstructed, ready-to-predict estimator.
     """
     state = json.loads(Path(state_path).read_text())
     arrays = dict(safetensors.numpy.load_file(str(arrays_path)))
-
     saved_versions = state.get("skeights_version", {})
     _warn_version_mismatch(saved_versions)
-
-    estimator = _rebuild_estimator_from_params(state["model_params"])
-    fitted_state = state.get("fitted_state", {})
-    _restore_estimator_arrays(estimator, arrays, fitted_state=fitted_state or None)
-    if fitted_state:
-        _restore_fitted_state(estimator, fitted_state)
-    return estimator
+    return deserialize(state, arrays)
