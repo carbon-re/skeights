@@ -1,6 +1,6 @@
 {
   "skeights_version": {
-    "sklearn": "1.5.2"
+    "sklearn": "1.9.0"
   },
   "model_params": {
     "alpha": 0.1,

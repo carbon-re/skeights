@@ -25,19 +25,27 @@ MODELS = [
     "mlp",
 ]
 
+def _can_import(pkg: str) -> bool:
+    try:
+        __import__(pkg)
+        return True
+    except ImportError:
+        return False
+
+
 OPTIONAL_MODELS = [
     pytest.param(
         "lgbm",
         marks=pytest.mark.skipif(
-            not (FIXTURES_DIR / "lgbm.safetensors").exists(),
-            reason="lgbm fixtures not generated",
+            not _can_import("lightgbm"),
+            reason="lightgbm not installed",
         ),
     ),
     pytest.param(
         "xgb",
         marks=pytest.mark.skipif(
-            not (FIXTURES_DIR / "xgb.safetensors").exists(),
-            reason="xgb fixtures not generated",
+            not _can_import("xgboost"),
+            reason="xgboost not installed",
         ),
     ),
 ]

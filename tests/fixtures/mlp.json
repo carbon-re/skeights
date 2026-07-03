@@ -1,6 +1,6 @@
 {
   "skeights_version": {
-    "sklearn": "1.5.2"
+    "sklearn": "1.9.0"
   },
   "model_params": {
     "activation": "relu",
@@ -15,6 +15,7 @@
     ],
     "learning_rate": "constant",
     "learning_rate_init": 0.001,
+    "loss": "squared_error",
     "max_fun": 15000,
     "max_iter": 500,
     "momentum": 0.9,
