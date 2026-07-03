@@ -23,6 +23,35 @@ from skeights._params import (
 from skeights._utils import get_sklearn_public_path, json_default
 
 
+def _get_current_version(pkg: str) -> str | None:
+    """Get the installed version of a package, or None."""
+    if pkg == "sklearn":
+        return sklearn.__version__
+    try:
+        import importlib.metadata
+
+        return importlib.metadata.version(pkg)
+    except Exception:
+        return None
+
+
+def _warn_version_mismatch(saved_versions: dict[str, str]) -> None:
+    """Warn if any saved package version differs from the current one."""
+    for pkg, saved_ver in saved_versions.items():
+        current_ver = _get_current_version(pkg)
+        if current_ver is None:
+            continue
+        saved_mm = ".".join(saved_ver.split(".")[:2])
+        current_mm = ".".join(current_ver.split(".")[:2])
+        if saved_mm != current_mm:
+            warnings.warn(
+                f"Model was saved with {pkg} {saved_ver} "
+                f"but you are loading with {current_ver}. "
+                f"Predictions may differ.",
+                stacklevel=3,
+            )
+
+
 def save(
     estimator: BaseEstimator,
     arrays_path: str | Path,
@@ -39,10 +68,23 @@ def save(
     params = get_model_params(estimator)
     if "type" not in params:
         params["type"] = get_sklearn_public_path(type(estimator))
+    versions: dict[str, str] = {"sklearn": sklearn.__version__}
+    try:
+        import lightgbm
+
+        if "lightgbm" in type(estimator).__module__:
+            versions["lightgbm"] = lightgbm.__version__
+    except ImportError:
+        pass
+    try:
+        import xgboost
+
+        if "xgboost" in type(estimator).__module__:
+            versions["xgboost"] = xgboost.__version__
+    except ImportError:
+        pass
     state = {
-        "skeights_version": {
-            "sklearn": sklearn.__version__,
-        },
+        "skeights_version": versions,
         "model_params": params,
         "fitted_state": _collect_fitted_state(estimator),
     }
@@ -67,17 +109,7 @@ def load(
     arrays = dict(safetensors.numpy.load_file(str(arrays_path)))
 
     saved_versions = state.get("skeights_version", {})
-    saved_sklearn = saved_versions.get("sklearn")
-    if saved_sklearn:
-        saved_major_minor = ".".join(saved_sklearn.split(".")[:2])
-        current_major_minor = ".".join(sklearn.__version__.split(".")[:2])
-        if saved_major_minor != current_major_minor:
-            warnings.warn(
-                f"Model was saved with scikit-learn {saved_sklearn} "
-                f"but you are loading with {sklearn.__version__}. "
-                f"Predictions may differ.",
-                stacklevel=2,
-            )
+    _warn_version_mismatch(saved_versions)
 
     estimator = _rebuild_estimator_from_params(state["model_params"])
     fitted_state = state.get("fitted_state", {})
