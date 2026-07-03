@@ -5,3 +5,4 @@ dist/
 build/
 .venv/
 *.safetensors
+!tests/fixtures/*.safetensors
