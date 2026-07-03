@@ -1,0 +1,27 @@
+{
+  "model_params": {
+    "memory": null,
+    "steps": {
+      "scaler": {
+        "copy": true,
+        "with_mean": true,
+        "with_std": true,
+        "type": "sklearn.preprocessing.StandardScaler"
+      },
+      "model": {
+        "alpha": 0.1,
+        "copy_X": true,
+        "fit_intercept": true,
+        "max_iter": null,
+        "positive": false,
+        "random_state": null,
+        "solver": "auto",
+        "tol": 0.0001,
+        "type": "sklearn.linear_model.Ridge"
+      }
+    },
+    "verbose": false,
+    "type": "sklearn.pipeline.Pipeline"
+  },
+  "fitted_state": {}
+}

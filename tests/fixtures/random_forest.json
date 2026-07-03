@@ -1,0 +1,233 @@
+{
+  "model_params": {
+    "bootstrap": true,
+    "ccp_alpha": 0.0,
+    "criterion": "squared_error",
+    "max_depth": 3,
+    "max_features": 1.0,
+    "max_leaf_nodes": null,
+    "max_samples": null,
+    "min_impurity_decrease": 0.0,
+    "min_samples_leaf": 1,
+    "min_samples_split": 2,
+    "min_weight_fraction_leaf": 0.0,
+    "monotonic_cst": null,
+    "n_estimators": 5,
+    "n_jobs": null,
+    "oob_score": false,
+    "random_state": 0,
+    "verbose": 0,
+    "warm_start": false,
+    "type": "sklearn.ensemble.RandomForestRegressor"
+  },
+  "fitted_state": {
+    "n_trees": 5,
+    "_trees/0/max_depth": 3,
+    "_trees/0/node_count": 15,
+    "_trees/0/n_features": 3,
+    "_trees/0/n_outputs": 1,
+    "_trees/0/n_classes": [
+      1
+    ],
+    "_trees/0/nodes_dtype": [
+      [
+        "left_child",
+        "<i8"
+      ],
+      [
+        "right_child",
+        "<i8"
+      ],
+      [
+        "feature",
+        "<i8"
+      ],
+      [
+        "threshold",
+        "<f8"
+      ],
+      [
+        "impurity",
+        "<f8"
+      ],
+      [
+        "n_node_samples",
+        "<i8"
+      ],
+      [
+        "weighted_n_node_samples",
+        "<f8"
+      ],
+      [
+        "missing_go_to_left",
+        "|u1"
+      ]
+    ],
+    "_trees/1/max_depth": 3,
+    "_trees/1/node_count": 15,
+    "_trees/1/n_features": 3,
+    "_trees/1/n_outputs": 1,
+    "_trees/1/n_classes": [
+      1
+    ],
+    "_trees/1/nodes_dtype": [
+      [
+        "left_child",
+        "<i8"
+      ],
+      [
+        "right_child",
+        "<i8"
+      ],
+      [
+        "feature",
+        "<i8"
+      ],
+      [
+        "threshold",
+        "<f8"
+      ],
+      [
+        "impurity",
+        "<f8"
+      ],
+      [
+        "n_node_samples",
+        "<i8"
+      ],
+      [
+        "weighted_n_node_samples",
+        "<f8"
+      ],
+      [
+        "missing_go_to_left",
+        "|u1"
+      ]
+    ],
+    "_trees/2/max_depth": 3,
+    "_trees/2/node_count": 15,
+    "_trees/2/n_features": 3,
+    "_trees/2/n_outputs": 1,
+    "_trees/2/n_classes": [
+      1
+    ],
+    "_trees/2/nodes_dtype": [
+      [
+        "left_child",
+        "<i8"
+      ],
+      [
+        "right_child",
+        "<i8"
+      ],
+      [
+        "feature",
+        "<i8"
+      ],
+      [
+        "threshold",
+        "<f8"
+      ],
+      [
+        "impurity",
+        "<f8"
+      ],
+      [
+        "n_node_samples",
+        "<i8"
+      ],
+      [
+        "weighted_n_node_samples",
+        "<f8"
+      ],
+      [
+        "missing_go_to_left",
+        "|u1"
+      ]
+    ],
+    "_trees/3/max_depth": 3,
+    "_trees/3/node_count": 15,
+    "_trees/3/n_features": 3,
+    "_trees/3/n_outputs": 1,
+    "_trees/3/n_classes": [
+      1
+    ],
+    "_trees/3/nodes_dtype": [
+      [
+        "left_child",
+        "<i8"
+      ],
+      [
+        "right_child",
+        "<i8"
+      ],
+      [
+        "feature",
+        "<i8"
+      ],
+      [
+        "threshold",
+        "<f8"
+      ],
+      [
+        "impurity",
+        "<f8"
+      ],
+      [
+        "n_node_samples",
+        "<i8"
+      ],
+      [
+        "weighted_n_node_samples",
+        "<f8"
+      ],
+      [
+        "missing_go_to_left",
+        "|u1"
+      ]
+    ],
+    "_trees/4/max_depth": 3,
+    "_trees/4/node_count": 15,
+    "_trees/4/n_features": 3,
+    "_trees/4/n_outputs": 1,
+    "_trees/4/n_classes": [
+      1
+    ],
+    "_trees/4/nodes_dtype": [
+      [
+        "left_child",
+        "<i8"
+      ],
+      [
+        "right_child",
+        "<i8"
+      ],
+      [
+        "feature",
+        "<i8"
+      ],
+      [
+        "threshold",
+        "<f8"
+      ],
+      [
+        "impurity",
+        "<f8"
+      ],
+      [
+        "n_node_samples",
+        "<i8"
+      ],
+      [
+        "weighted_n_node_samples",
+        "<f8"
+      ],
+      [
+        "missing_go_to_left",
+        "|u1"
+      ]
+    ],
+    "n_features_in_": 3,
+    "n_outputs_": 1
+  }
+}

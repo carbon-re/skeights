@@ -1,0 +1,99 @@
+{
+  "model_params": {
+    "categorical_features": "warn",
+    "early_stopping": "auto",
+    "interaction_cst": null,
+    "l2_regularization": 0.0,
+    "learning_rate": 0.1,
+    "loss": "squared_error",
+    "max_bins": 255,
+    "max_depth": null,
+    "max_features": 1.0,
+    "max_iter": 5,
+    "max_leaf_nodes": 31,
+    "min_samples_leaf": 20,
+    "monotonic_cst": null,
+    "n_iter_no_change": 10,
+    "quantile": null,
+    "random_state": 0,
+    "scoring": "loss",
+    "tol": 1e-07,
+    "validation_fraction": 0.1,
+    "verbose": 0,
+    "warm_start": false,
+    "type": "sklearn.ensemble._hist_gradient_boosting.gradient_boosting.HistGradientBoostingRegressor"
+  },
+  "fitted_state": {
+    "n_trees_per_iteration_": 1,
+    "do_early_stopping_": false,
+    "n_features_in_": 3,
+    "_random_seed": 2357136044,
+    "_bin_mapper/n_bins": 256,
+    "_bin_mapper/subsample": 200000,
+    "_bin_mapper/random_state": 2357136044,
+    "_bin_mapper/n_threads": 12,
+    "_bin_mapper/missing_values_bin_idx_": 255,
+    "_bin_mapper/n_features_": 3,
+    "_predictors_shape": [
+      1,
+      1,
+      1,
+      1,
+      1
+    ],
+    "_predictors_node_dtype": [
+      [
+        "value",
+        "<f8"
+      ],
+      [
+        "count",
+        "<u4"
+      ],
+      [
+        "feature_idx",
+        "<i8"
+      ],
+      [
+        "num_threshold",
+        "<f8"
+      ],
+      [
+        "missing_go_to_left",
+        "|u1"
+      ],
+      [
+        "left",
+        "<u4"
+      ],
+      [
+        "right",
+        "<u4"
+      ],
+      [
+        "gain",
+        "<f8"
+      ],
+      [
+        "depth",
+        "<u4"
+      ],
+      [
+        "is_leaf",
+        "|u1"
+      ],
+      [
+        "bin_threshold",
+        "|u1"
+      ],
+      [
+        "is_categorical",
+        "|u1"
+      ],
+      [
+        "bitset_idx",
+        "<u4"
+      ]
+    ]
+  }
+}
