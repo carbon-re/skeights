@@ -55,6 +55,17 @@ loaded = skeights.load("model.safetensors", "model.json")
 predictions = loaded.predict(X_test)
 ```
 
+## API
+
+| Function | Description |
+|---|---|
+| `save(estimator, arrays_path, state_path)` | Serialize to safetensors + JSON files |
+| `load(arrays_path, state_path)` | Load from files, return fitted estimator |
+| `serialize(estimator)` | Return `(state_dict, arrays_dict)` in memory |
+| `deserialize(state, arrays)` | Reconstruct estimator from dicts |
+| `get_model_params(estimator)` | Recursively extract hyperparameters (handles Pipelines, kernels, TTR) |
+| `set_model_params(estimator, params)` | Recursively set hyperparameters |
+
 ## Supported estimators
 
 - **Linear models**: Ridge, Lasso, LinearRegression, LogisticRegression, etc.
