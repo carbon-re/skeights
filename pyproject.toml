@@ -35,6 +35,7 @@ lightgbm = ["lightgbm"]
 xgboost = ["xgboost"]
 all = ["lightgbm", "xgboost"]
 dev = [
+    "pandas",
     "pytest",
     "lightgbm",
     "xgboost",
