@@ -7,6 +7,9 @@ round_trip() tests miss.
 
 from __future__ import annotations
 
+import json
+import warnings
+
 import numpy as np
 from sklearn import ensemble, linear_model, preprocessing
 from sklearn.neural_network import MLPRegressor
@@ -82,3 +85,66 @@ def test_save_load_mlp(regression_data_split, tmp_path):
     np.testing.assert_allclose(
         model.predict(X_test), loaded.predict(X_test), atol=1e-10
     )
+
+
+def test_saved_state_contains_sklearn_version(regression_data, tmp_path):
+    X, y = regression_data
+    model = linear_model.Ridge(alpha=0.1)
+    model.fit(X, y["y"])
+    skeights.save(model, tmp_path / "m.safetensors", tmp_path / "m.json")
+    state = json.loads((tmp_path / "m.json").read_text())
+    assert "skeights_version" in state
+    assert "sklearn" in state["skeights_version"]
+    import sklearn
+
+    assert state["skeights_version"]["sklearn"] == sklearn.__version__
+
+
+def test_saved_lgbm_contains_lightgbm_version(regression_data, tmp_path):
+    lgb = __import__("pytest").importorskip("lightgbm")
+    X, y = regression_data
+    model = lgb.LGBMRegressor(n_estimators=3, verbose=-1)
+    model.fit(X, y["y"])
+    skeights.save(model, tmp_path / "m.safetensors", tmp_path / "m.json")
+    state = json.loads((tmp_path / "m.json").read_text())
+    assert state["skeights_version"]["lightgbm"] == lgb.__version__
+
+
+def test_saved_xgb_contains_xgboost_version(regression_data, tmp_path):
+    xgb = __import__("pytest").importorskip("xgboost")
+    X, y = regression_data
+    model = xgb.XGBRegressor(n_estimators=3)
+    model.fit(X, y["y"])
+    skeights.save(model, tmp_path / "m.safetensors", tmp_path / "m.json")
+    state = json.loads((tmp_path / "m.json").read_text())
+    assert state["skeights_version"]["xgboost"] == xgb.__version__
+
+
+def test_load_warns_on_version_mismatch(regression_data, tmp_path):
+    X, y = regression_data
+    model = linear_model.Ridge(alpha=0.1)
+    model.fit(X, y["y"])
+    skeights.save(model, tmp_path / "m.safetensors", tmp_path / "m.json")
+
+    state = json.loads((tmp_path / "m.json").read_text())
+    state["skeights_version"]["sklearn"] = "0.99.0"
+    (tmp_path / "m.json").write_text(json.dumps(state))
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        skeights.load(tmp_path / "m.safetensors", tmp_path / "m.json")
+    version_warnings = [x for x in w if "0.99.0" in str(x.message)]
+    assert len(version_warnings) == 1
+
+
+def test_load_no_warning_on_matching_version(regression_data, tmp_path):
+    X, y = regression_data
+    model = linear_model.Ridge(alpha=0.1)
+    model.fit(X, y["y"])
+    skeights.save(model, tmp_path / "m.safetensors", tmp_path / "m.json")
+
+    with warnings.catch_warnings(record=True) as w:
+        warnings.simplefilter("always")
+        skeights.load(tmp_path / "m.safetensors", tmp_path / "m.json")
+    version_warnings = [x for x in w if "Predictions may differ" in str(x.message)]
+    assert len(version_warnings) == 0
