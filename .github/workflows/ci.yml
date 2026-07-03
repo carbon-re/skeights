@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [main]
   schedule:
-    - cron: "0 6 * * 1"  # weekly Monday 6am UTC
+    - cron: "0 6 * * *"  # nightly 6am UTC
 
 jobs:
   lint:
