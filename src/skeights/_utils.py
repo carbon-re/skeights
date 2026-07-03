@@ -10,7 +10,19 @@ import importlib
 import warnings
 from typing import Any
 
+import numpy as np
 from sklearn.base import BaseEstimator
+
+
+def json_default(obj: Any) -> Any:
+    """JSON encoder default for numpy types."""
+    if isinstance(obj, np.integer):
+        return int(obj)
+    if isinstance(obj, np.floating):
+        return float(obj)
+    if isinstance(obj, np.ndarray):
+        return obj.tolist()
+    raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
 
 
 def get_sklearn_public_path(cls: type) -> str:

@@ -33,17 +33,13 @@ def collect_state(estimator: BaseEstimator, prefix: str) -> dict[str, Any]:
         if hasattr(estimator, attr):
             state[f"{prefix}{attr}"] = getattr(estimator, attr)
     if hasattr(estimator, "_random_seed"):
-        state[f"{prefix}_random_seed"] = int(
-            estimator._random_seed  # type: ignore[attr-defined]
-        )
+        state[f"{prefix}_random_seed"] = estimator._random_seed  # type: ignore[attr-defined]
     bm = estimator._bin_mapper  # type: ignore[attr-defined]
     state[f"{prefix}_bin_mapper/n_bins"] = bm.n_bins
     state[f"{prefix}_bin_mapper/subsample"] = bm.subsample
-    state[f"{prefix}_bin_mapper/random_state"] = int(bm.random_state)  # type: ignore[arg-type]
+    state[f"{prefix}_bin_mapper/random_state"] = bm.random_state
     state[f"{prefix}_bin_mapper/n_threads"] = bm.n_threads
-    state[f"{prefix}_bin_mapper/missing_values_bin_idx_"] = int(
-        bm.missing_values_bin_idx_  # type: ignore[arg-type]
-    )
+    state[f"{prefix}_bin_mapper/missing_values_bin_idx_"] = bm.missing_values_bin_idx_
     state[f"{prefix}_bin_mapper/n_features_"] = len(bm.bin_thresholds_)
     state[f"{prefix}_predictors_shape"] = [
         len(pl)

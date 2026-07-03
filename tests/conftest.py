@@ -57,7 +57,9 @@ def assert_serializable(estimator: BaseEstimator) -> None:
     """Assert state is JSON-safe and arrays are all numpy ndarrays."""
     import json
 
-    json.dumps(_collect_fitted_state(estimator))
+    from skeights._utils import json_default
+
+    json.dumps(_collect_fitted_state(estimator), default=json_default)
     for k, v in _arrays_from_estimator(estimator).items():
         assert isinstance(v, np.ndarray), f"{k} is {type(v).__name__}"
 

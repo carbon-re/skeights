@@ -18,7 +18,7 @@ from skeights._params import (
     _rebuild_estimator_from_params,
     get_model_params,
 )
-from skeights._utils import get_sklearn_public_path
+from skeights._utils import get_sklearn_public_path, json_default
 
 
 def save(
@@ -42,7 +42,7 @@ def save(
         "fitted_state": _collect_fitted_state(estimator),
     }
     safetensors.numpy.save_file(arrays, str(arrays_path))
-    Path(state_path).write_text(json.dumps(state, indent=2))
+    Path(state_path).write_text(json.dumps(state, indent=2, default=json_default))
 
 
 def load(

@@ -45,15 +45,15 @@ def _state_from_tree(tree_obj: object, prefix: str) -> dict[str, Any]:
     """Extract scalar state from a sklearn Tree object."""
     state = tree_obj.__getstate__()  # type: ignore[union-attr]
     result: dict[str, Any] = {}
-    result[f"{prefix}max_depth"] = int(state["max_depth"])  # type: ignore[index]
-    result[f"{prefix}node_count"] = int(state["node_count"])  # type: ignore[index]
+    result[f"{prefix}max_depth"] = state["max_depth"]  # type: ignore[index]
+    result[f"{prefix}node_count"] = state["node_count"]  # type: ignore[index]
     # Tree constructor needs n_features, n_classes, n_outputs — always read
     # from the object (available as attrs even when __getstate__ omits them).
-    result[f"{prefix}n_features"] = int(tree_obj.n_features)  # type: ignore[union-attr]
-    result[f"{prefix}n_outputs"] = int(tree_obj.n_outputs)  # type: ignore[union-attr]
+    result[f"{prefix}n_features"] = tree_obj.n_features  # type: ignore[union-attr]
+    result[f"{prefix}n_outputs"] = tree_obj.n_outputs  # type: ignore[union-attr]
     n_classes = tree_obj.n_classes  # type: ignore[union-attr]
     result[f"{prefix}n_classes"] = (
-        [int(x) for x in n_classes] if hasattr(n_classes, "tolist") else int(n_classes)
+        list(n_classes) if hasattr(n_classes, "tolist") else n_classes
     )
     nodes = state["nodes"]  # type: ignore[index]
     result[f"{prefix}nodes_dtype"] = [
@@ -180,7 +180,7 @@ def _state_from_tree_ensemble(estimator: _TreeEnsemble, prefix: str) -> dict[str
             for i in range(shape[0])
             for j in range(shape[1])
         ]
-        state[f"{prefix}n_estimators_"] = int(estimator.n_estimators_)
+        state[f"{prefix}n_estimators_"] = estimator.n_estimators_
         if hasattr(estimator, "init_"):
             state[f"{prefix}_init/type"] = get_sklearn_public_path(
                 type(estimator.init_)
@@ -192,9 +192,7 @@ def _state_from_tree_ensemble(estimator: _TreeEnsemble, prefix: str) -> dict[str
     for attr in ("n_features_in_", "n_outputs_", "n_classes_"):
         if hasattr(estimator, attr):
             val = getattr(estimator, attr)
-            state[f"{prefix}{attr}"] = (
-                int(val) if isinstance(val, (int, np.integer)) else val
-            )
+            state[f"{prefix}{attr}"] = val
 
     return state
 
