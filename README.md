@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logo.png" alt="skeights logo" width="200">
+  <img src="https://raw.githubusercontent.com/carbon-re/skeights/main/logo.png" alt="skeights logo" width="200">
 </p>
 
 # skeights

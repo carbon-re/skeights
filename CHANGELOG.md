@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Fix logo not rendering on PyPI (use absolute URL)
+
 ## 0.1.0
 
 Initial release.
