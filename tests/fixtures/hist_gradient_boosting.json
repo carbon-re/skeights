@@ -1,9 +1,10 @@
 {
   "skeights_version": {
-    "sklearn": "1.9.0"
+    "skeights": "0.1.0",
+    "sklearn": "1.5.2"
   },
   "model_params": {
-    "categorical_features": "from_dtype",
+    "categorical_features": "warn",
     "early_stopping": "auto",
     "interaction_cst": null,
     "l2_regularization": 0.0,

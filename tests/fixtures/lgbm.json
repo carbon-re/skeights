@@ -1,6 +1,7 @@
 {
   "skeights_version": {
-    "sklearn": "1.9.0",
+    "skeights": "0.1.0",
+    "sklearn": "1.5.2",
     "lightgbm": "4.6.0"
   },
   "model_params": {

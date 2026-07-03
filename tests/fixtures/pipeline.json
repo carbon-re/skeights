@@ -1,6 +1,7 @@
 {
   "skeights_version": {
-    "sklearn": "1.9.0"
+    "skeights": "0.1.0",
+    "sklearn": "1.5.2"
   },
   "model_params": {
     "memory": null,
@@ -23,7 +24,6 @@
         "type": "sklearn.linear_model.Ridge"
       }
     },
-    "transform_input": null,
     "verbose": false,
     "type": "sklearn.pipeline.Pipeline"
   },
