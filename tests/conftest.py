@@ -53,6 +53,15 @@ def binary_data_split() -> tuple[
     return X.iloc[:60], y.iloc[:60], X.iloc[60:], y.iloc[60:]
 
 
+def assert_serializable(estimator: BaseEstimator) -> None:
+    """Assert state is JSON-safe and arrays are all numpy ndarrays."""
+    import json
+
+    json.dumps(_collect_fitted_state(estimator))
+    for k, v in _arrays_from_estimator(estimator).items():
+        assert isinstance(v, np.ndarray), f"{k} is {type(v).__name__}"
+
+
 def round_trip(estimator: BaseEstimator) -> BaseEstimator:
     """Serialize and deserialize an estimator via state + arrays."""
     params = get_model_params(estimator)

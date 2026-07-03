@@ -9,7 +9,7 @@ from sklearn.neural_network import MLPClassifier, MLPRegressor
 
 from skeights._core import _arrays_from_estimator, _collect_fitted_state
 
-from .conftest import round_trip
+from .conftest import assert_serializable, round_trip
 
 
 @pytest.mark.parametrize("use_pipeline", [True, False])
@@ -87,3 +87,10 @@ def test_mlp_fitted_state_contains_layer_info(regression_data):
     fitted = _collect_fitted_state(model)
     assert "n_layers_" in fitted
     assert "out_activation_" in fitted
+
+
+def test_mlp_serialization_formats(regression_data):
+    X, y = regression_data
+    model = MLPRegressor(hidden_layer_sizes=(4,), random_state=0, max_iter=1)
+    model.fit(X, y["y"])
+    assert_serializable(model)

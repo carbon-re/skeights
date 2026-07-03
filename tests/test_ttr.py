@@ -8,7 +8,7 @@ from sklearn import compose, linear_model, pipeline, preprocessing
 
 from skeights._core import _arrays_from_estimator, _collect_fitted_state
 
-from .conftest import round_trip
+from .conftest import assert_serializable, round_trip
 
 
 def _ttr(alpha: float = 0.001) -> compose.TransformedTargetRegressor:
@@ -41,6 +41,8 @@ def test_ttr_multi_output_round_trip():
     assert "regressor_/scaler/mean_" in arrays
     assert "transformer_/mean_" in arrays
     assert "transformer_/scale_" in arrays
+
+    assert_serializable(model)
 
     restored = round_trip(model)
     np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)

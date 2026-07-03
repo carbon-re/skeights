@@ -10,7 +10,7 @@ from sklearn.gaussian_process import (
 )
 from sklearn.gaussian_process.kernels import RBF, WhiteKernel
 
-from .conftest import round_trip
+from .conftest import assert_serializable, round_trip
 
 
 def test_gpr_round_trip():
@@ -26,6 +26,7 @@ def test_gpr_round_trip():
     np.testing.assert_allclose(model.predict(X), restored.predict(X), atol=1e-10)
     np.testing.assert_allclose(restored.alpha_, model.alpha_, atol=1e-15)
     np.testing.assert_allclose(restored.L_, model.L_, atol=1e-15)
+    assert_serializable(model)
 
 
 def test_gpr_out_of_sample():

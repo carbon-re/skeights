@@ -8,7 +8,7 @@ from sklearn import ensemble
 
 from skeights._core import _arrays_from_estimator
 
-from .conftest import round_trip
+from .conftest import assert_serializable, round_trip
 
 
 def test_hgb_regressor_round_trip():
@@ -59,3 +59,10 @@ def test_hgb_arrays_contain_predictors_and_bin_mapper(regression_data):
     assert "_bin_mapper/bin_thresholds_0" in arrays
     assert "_bin_mapper/is_categorical_" in arrays
     assert "_predictors/0/0/nodes_value" in arrays
+
+
+def test_hgb_serialization_formats(regression_data):
+    X, y = regression_data
+    model = ensemble.HistGradientBoostingRegressor(max_iter=3, random_state=0)
+    model.fit(X, y["y"])
+    assert_serializable(model)

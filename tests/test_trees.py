@@ -9,7 +9,7 @@ from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
 from skeights._core import _arrays_from_estimator, _collect_fitted_state
 
-from .conftest import round_trip
+from .conftest import assert_serializable, round_trip
 
 
 @pytest.mark.parametrize(
@@ -119,3 +119,18 @@ def test_gb_state_contains_init_type(regression_data):
     fitted = _collect_fitted_state(model)
     assert "_init/type" in fitted
     assert "DummyRegressor" in fitted["_init/type"]
+
+
+@pytest.mark.parametrize(
+    "estimator",
+    [
+        DecisionTreeRegressor(max_depth=3, random_state=0),
+        ensemble.RandomForestRegressor(n_estimators=3, max_depth=2, random_state=0),
+        ensemble.GradientBoostingRegressor(n_estimators=3, max_depth=2, random_state=0),
+    ],
+    ids=["dt", "rf", "gb"],
+)
+def test_tree_serialization_formats(estimator, regression_data):
+    X, y = regression_data
+    estimator.fit(X, y["y"])
+    assert_serializable(estimator)
