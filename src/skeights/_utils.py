@@ -78,6 +78,7 @@ SKLEARN_ARRAY_ATTRS = (
     "coef_",
     "intercept_",
     "feature_importances_",
+    "center_",  # RobustScaler
     "mean_",
     "n_samples_seen_",
     "scale_",

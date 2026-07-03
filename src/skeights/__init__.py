@@ -1,6 +1,6 @@
 """skeights — serialize fitted scikit-learn models to safetensors + JSON."""
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
 
 from skeights._io import deserialize, load, save, serialize
 from skeights._params import get_model_params, set_model_params

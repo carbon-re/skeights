@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1
+
+- Fix: RobustScaler `center_` was missing from serialized arrays
+- Add parametrized scaler tests for all three scaler types
+
 ## 0.2.0
 
 - Add `serialize()` / `deserialize()` for in-memory round-trips

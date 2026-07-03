@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 import numpy as np
+import pytest
 from sklearn import linear_model, pipeline, preprocessing
 
 from skeights._core import _arrays_from_estimator, _collect_fitted_state
@@ -37,14 +38,21 @@ def test_pipeline_round_trip(regression_data):
     np.testing.assert_allclose(pipe.predict(X), restored.predict(X), atol=1e-10)
 
 
-def test_scaler_round_trip(regression_data):
+@pytest.mark.parametrize(
+    "scaler_cls",
+    [
+        preprocessing.StandardScaler,
+        preprocessing.MinMaxScaler,
+        preprocessing.RobustScaler,
+    ],
+    ids=["standard", "minmax", "robust"],
+)
+def test_scaler_round_trip(regression_data, scaler_cls):
     X, _ = regression_data
-    scaler = preprocessing.StandardScaler()
+    scaler = scaler_cls()
     scaler.fit(X)
     restored = round_trip(scaler)
     np.testing.assert_allclose(scaler.transform(X), restored.transform(X), atol=1e-10)
-    np.testing.assert_allclose(restored.mean_, scaler.mean_, atol=1e-15)
-    np.testing.assert_allclose(restored.scale_, scaler.scale_, atol=1e-15)
 
 
 def test_linear_out_of_sample(regression_data_split):
