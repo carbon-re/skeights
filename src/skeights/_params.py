@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 import warnings
 from typing import Any, cast
 
@@ -85,9 +84,10 @@ def set_model_params(model: BaseEstimator, params: dict[str, Any]) -> BaseEstima
 def _rebuild_estimator_from_params(params: dict[str, Any]) -> BaseEstimator:
     """Instantiate a sklearn estimator tree from a params dict."""
     params = dict(params)
+    from skeights._utils import safe_import
+
     type_path: str = params.pop("type")
-    module_path, _, class_name = type_path.rpartition(".")
-    cls = getattr(importlib.import_module(module_path), class_name)
+    cls = safe_import(type_path)
 
     is_pipeline = issubclass(cls, Pipeline)
 

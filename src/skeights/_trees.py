@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 from typing import Any
 
 import numpy as np
@@ -244,9 +243,10 @@ def _restore_tree_ensemble(
         # Restore init_
         init_type_key = f"{prefix}_init/type"
         if init_type_key in fitted_state:
+            from skeights._utils import safe_import
+
             init_path = fitted_state[init_type_key]
-            mod_path, _, cls_name = init_path.rpartition(".")
-            init_cls = getattr(importlib.import_module(mod_path), cls_name)
+            init_cls = safe_import(init_path)
             init = init_cls()
             init.n_outputs_ = n_out  # type: ignore[attr-defined]
             init.n_features_in_ = n_feat  # type: ignore[attr-defined]
