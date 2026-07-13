@@ -57,9 +57,6 @@ cross-version migration is your problem. skeights does not guarantee
 cross-version support. Note that sklearn-migrator does not yet cover
 pipelines, XGBoost, or LightGBM, which skeights does.
 
-**[sklearn-json](https://github.com/mlrequest/sklearn-json)** stores
-models as JSON. It has not been updated in several years.
-
 > **Note**: the feature descriptions of skops and sklearn-migrator
 > above reflect their state as of mid-2026. Check their current
 > docs for the latest.
