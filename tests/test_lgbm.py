@@ -34,13 +34,16 @@ def test_lgbm_classifier_round_trip(binary_data):
     )
 
 
-def test_lgbm_state_contains_model_string(regression_data):
+def test_lgbm_state_contains_tree_metadata(regression_data):
     X, y = regression_data
     model = lgb.LGBMRegressor(n_estimators=5, max_depth=3, verbose=-1)
     model.fit(X, y["y"])
     state = _collect_fitted_state(model)
-    assert "model_str" in state
-    assert state["model_str"].startswith("tree\n")
+    assert "__format__" in state
+    assert state["__format__"]["format"] == "columnar-tensors"
+    assert "tree" in state
+    assert state["tree"]["objective"] == "regression"
+    assert state["tree"]["num_class"] == 1
     assert "objective" in state
 
 
