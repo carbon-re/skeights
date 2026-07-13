@@ -1,8 +1,9 @@
 """Test that models can be retrained after loading from serialized artifacts.
 
-Verifies that save/load produces models that are not just usable for
-inference but can also be .fit() again on new data and produce valid
-predictions afterwards.
+For each model type: train on data A, save/load, retrain on data B.
+Also train a fresh model (same params) on data B from scratch.
+Assert both give identical predictions -- proving the loaded model
+retrains equivalently to a fresh one.
 """
 
 from __future__ import annotations
@@ -38,6 +39,14 @@ def new_data():
 
 
 @pytest.fixture
+def new_binary_data():
+    rng = np.random.default_rng(77)
+    X = rng.standard_normal((60, 5))
+    y = (X[:, 0] + X[:, 1] > 0).astype(int)
+    return X, y
+
+
+@pytest.fixture
 def binary_data():
     rng = np.random.default_rng(42)
     X = rng.standard_normal((100, 5))
@@ -54,17 +63,21 @@ class TestRetrainSklearn:
     def test_ridge(self, train_data, new_data, tmp_path):
         X, y = train_data
         X2, y2 = new_data
+
         model = Ridge(alpha=1.0)
         model.fit(X, y)
         loaded = _save_load(model, tmp_path)
         loaded.fit(X2, y2)
-        preds = loaded.predict(X2)
-        assert preds.shape == (80,)
-        assert np.isfinite(preds).all()
+
+        fresh = Ridge(alpha=1.0)
+        fresh.fit(X2, y2)
+
+        np.testing.assert_allclose(loaded.predict(X2), fresh.predict(X2))
 
     def test_pipeline(self, train_data, new_data, tmp_path):
         X, y = train_data
         X2, y2 = new_data
+
         pipe = Pipeline([
             ("scaler", StandardScaler()),
             ("model", Ridge(alpha=1.0)),
@@ -72,44 +85,57 @@ class TestRetrainSklearn:
         pipe.fit(X, y)
         loaded = _save_load(pipe, tmp_path)
         loaded.fit(X2, y2)
-        preds = loaded.predict(X2)
-        assert preds.shape == (80,)
-        assert np.isfinite(preds).all()
+
+        fresh = Pipeline([
+            ("scaler", StandardScaler()),
+            ("model", Ridge(alpha=1.0)),
+        ])
+        fresh.fit(X2, y2)
+
+        np.testing.assert_allclose(loaded.predict(X2), fresh.predict(X2))
 
     def test_random_forest(self, train_data, new_data, tmp_path):
         X, y = train_data
         X2, y2 = new_data
+
         model = RandomForestRegressor(n_estimators=5, max_depth=3, random_state=0)
         model.fit(X, y)
         loaded = _save_load(model, tmp_path)
         loaded.fit(X2, y2)
-        preds = loaded.predict(X2)
-        assert preds.shape == (80,)
-        assert np.isfinite(preds).all()
+
+        fresh = RandomForestRegressor(n_estimators=5, max_depth=3, random_state=0)
+        fresh.fit(X2, y2)
+
+        np.testing.assert_allclose(loaded.predict(X2), fresh.predict(X2))
 
     def test_gradient_boosting(self, train_data, new_data, tmp_path):
         X, y = train_data
         X2, y2 = new_data
+
         model = GradientBoostingRegressor(n_estimators=5, max_depth=3, random_state=0)
         model.fit(X, y)
         loaded = _save_load(model, tmp_path)
         loaded.fit(X2, y2)
-        preds = loaded.predict(X2)
-        assert preds.shape == (80,)
-        assert np.isfinite(preds).all()
 
-    def test_gradient_boosting_classifier(self, binary_data, tmp_path):
+        fresh = GradientBoostingRegressor(n_estimators=5, max_depth=3, random_state=0)
+        fresh.fit(X2, y2)
+
+        np.testing.assert_allclose(loaded.predict(X2), fresh.predict(X2))
+
+    def test_gradient_boosting_classifier(self, binary_data, new_binary_data, tmp_path):
         X, y = binary_data
+        X2, y2 = new_binary_data
+
         model = GradientBoostingClassifier(n_estimators=5, max_depth=3, random_state=0)
         model.fit(X, y)
         loaded = _save_load(model, tmp_path)
-        rng = np.random.default_rng(77)
-        X2 = rng.standard_normal((60, 5))
-        y2 = (X2[:, 0] + X2[:, 1] > 0).astype(int)
         loaded.fit(X2, y2)
-        preds = loaded.predict(X2)
-        assert preds.shape == (60,)
-        assert set(preds).issubset({0, 1})
+
+        fresh = GradientBoostingClassifier(n_estimators=5, max_depth=3, random_state=0)
+        fresh.fit(X2, y2)
+
+        np.testing.assert_array_equal(loaded.predict(X2), fresh.predict(X2))
+        np.testing.assert_allclose(loaded.predict_proba(X2), fresh.predict_proba(X2))
 
 
 class TestRetrainLightGBM:
@@ -118,28 +144,33 @@ class TestRetrainLightGBM:
     def test_regressor(self, train_data, new_data, tmp_path):
         X, y = train_data
         X2, y2 = new_data
+
         model = self.lgb.LGBMRegressor(n_estimators=5, max_depth=3, verbose=-1)
         model.fit(X, y)
         loaded = _save_load(model, tmp_path)
         loaded.fit(X2, y2)
-        preds = loaded.predict(X2)
-        assert preds.shape == (80,)
-        assert np.isfinite(preds).all()
 
-    def test_classifier(self, binary_data, tmp_path):
+        fresh = self.lgb.LGBMRegressor(n_estimators=5, max_depth=3, verbose=-1)
+        fresh.fit(X2, y2)
+
+        np.testing.assert_allclose(loaded.predict(X2), fresh.predict(X2))
+
+    def test_classifier(self, binary_data, new_binary_data, tmp_path):
         X, y = binary_data
+        X2, y2 = new_binary_data
+
         model = self.lgb.LGBMClassifier(n_estimators=5, max_depth=3, verbose=-1)
         model.fit(X, y)
         loaded = _save_load(model, tmp_path)
-        rng = np.random.default_rng(77)
-        X2 = rng.standard_normal((60, 5))
-        y2 = (X2[:, 0] + X2[:, 1] > 0).astype(int)
         loaded.fit(X2, y2)
-        preds = loaded.predict(X2)
-        proba = loaded.predict_proba(X2)
-        assert preds.shape == (60,)
-        assert proba.shape == (60, 2)
-        assert set(preds).issubset({0, 1})
+
+        fresh = self.lgb.LGBMClassifier(n_estimators=5, max_depth=3, verbose=-1)
+        fresh.fit(X2, y2)
+
+        np.testing.assert_array_equal(loaded.predict(X2), fresh.predict(X2))
+        np.testing.assert_allclose(
+            loaded.predict_proba(X2), fresh.predict_proba(X2),
+        )
 
 
 class TestRetrainXGBoost:
@@ -148,25 +179,30 @@ class TestRetrainXGBoost:
     def test_regressor(self, train_data, new_data, tmp_path):
         X, y = train_data
         X2, y2 = new_data
+
         model = self.xgb.XGBRegressor(n_estimators=5, max_depth=3, random_state=0)
         model.fit(X, y)
         loaded = _save_load(model, tmp_path)
         loaded.fit(X2, y2)
-        preds = loaded.predict(X2)
-        assert preds.shape == (80,)
-        assert np.isfinite(preds).all()
 
-    def test_classifier(self, binary_data, tmp_path):
+        fresh = self.xgb.XGBRegressor(n_estimators=5, max_depth=3, random_state=0)
+        fresh.fit(X2, y2)
+
+        np.testing.assert_allclose(loaded.predict(X2), fresh.predict(X2))
+
+    def test_classifier(self, binary_data, new_binary_data, tmp_path):
         X, y = binary_data
+        X2, y2 = new_binary_data
+
         model = self.xgb.XGBClassifier(n_estimators=5, max_depth=3, random_state=0)
         model.fit(X, y)
         loaded = _save_load(model, tmp_path)
-        rng = np.random.default_rng(77)
-        X2 = rng.standard_normal((60, 5))
-        y2 = (X2[:, 0] + X2[:, 1] > 0).astype(int)
         loaded.fit(X2, y2)
-        preds = loaded.predict(X2)
-        proba = loaded.predict_proba(X2)
-        assert preds.shape == (60,)
-        assert proba.shape == (60, 2)
-        assert set(preds).issubset({0, 1})
+
+        fresh = self.xgb.XGBClassifier(n_estimators=5, max_depth=3, random_state=0)
+        fresh.fit(X2, y2)
+
+        np.testing.assert_array_equal(loaded.predict(X2), fresh.predict(X2))
+        np.testing.assert_allclose(
+            loaded.predict_proba(X2), fresh.predict_proba(X2),
+        )
