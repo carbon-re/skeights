@@ -45,6 +45,7 @@ dev = [
 
 [project.urls]
 Repository = "https://github.com/carbon-re/skeights"
+Changelog = "https://github.com/carbon-re/skeights/releases"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/skeights"]
