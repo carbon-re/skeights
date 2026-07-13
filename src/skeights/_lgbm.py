@@ -43,6 +43,33 @@ def handles(estimator: BaseEstimator) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Field definitions for columnar extraction
+# ---------------------------------------------------------------------------
+
+# (field_name_in_model_string, array_key, dtype)
+_SPLIT_FIELDS = [
+    ("split_feature", "split_feature", np.int32),
+    ("threshold", "threshold", np.float64),
+    ("decision_type", "decision_type", np.uint8),
+    ("left_child", "left_child", np.int32),
+    ("right_child", "right_child", np.int32),
+    ("split_gain", "split_gain", np.float32),
+    ("internal_value", "internal_value", np.float64),
+    ("internal_weight", "internal_weight", np.float64),
+    ("internal_count", "internal_count", np.int32),
+]
+
+_LEAF_FIELDS = [
+    ("leaf_value", "leaf_value", np.float64),
+    ("leaf_weight", "leaf_weight", np.float64),
+    ("leaf_count", "leaf_count", np.int32),
+]
+
+# Fields that need full-precision formatting in the model string
+_FULL_PRECISION_FIELDS = {"threshold", "leaf_value"}
+
+
+# ---------------------------------------------------------------------------
 # Columnar extraction: booster -> arrays + metadata
 # ---------------------------------------------------------------------------
 
@@ -91,9 +118,6 @@ def _parse_model_string(model_str: str) -> dict[str, Any]:
             if ": " in inner:
                 k, v = inner.split(": ", 1)
                 params[k] = v
-        elif section == "skip":
-            # feature_importances lines -- skip
-            pass
 
     return {"header": header, "trees": trees, "params": params}
 
@@ -107,20 +131,9 @@ def _extract_columnar(
     trees = parsed["trees"]
     params = parsed["params"]
 
-    # Per-tree arrays collected, then concatenated
-    all_split_feature: list[np.ndarray] = []
-    all_threshold: list[np.ndarray] = []
-    all_decision_type: list[np.ndarray] = []
-    all_left_child: list[np.ndarray] = []
-    all_right_child: list[np.ndarray] = []
-    all_split_gain: list[np.ndarray] = []
-    all_internal_value: list[np.ndarray] = []
-    all_internal_weight: list[np.ndarray] = []
-    all_internal_count: list[np.ndarray] = []
-
-    all_leaf_value: list[np.ndarray] = []
-    all_leaf_weight: list[np.ndarray] = []
-    all_leaf_count: list[np.ndarray] = []
+    # Accumulators: one list of arrays per field
+    split_acc: dict[str, list[np.ndarray]] = {f[1]: [] for f in _SPLIT_FIELDS}
+    leaf_acc: dict[str, list[np.ndarray]] = {f[1]: [] for f in _LEAF_FIELDS}
 
     split_offsets = [0]
     leaf_offsets = [0]
@@ -132,44 +145,18 @@ def _extract_columnar(
         num_leaves = int(tree["num_leaves"])
         num_splits = num_leaves - 1
 
-        if num_splits > 0:
-            sf = np.fromstring(tree["split_feature"], dtype=np.int32, sep=" ")
-            th = np.fromstring(tree["threshold"], dtype=np.float64, sep=" ")
-            dt = np.fromstring(tree["decision_type"], dtype=np.uint8, sep=" ")
-            lc = np.fromstring(tree["left_child"], dtype=np.int32, sep=" ")
-            rc = np.fromstring(tree["right_child"], dtype=np.int32, sep=" ")
-            sg = np.fromstring(tree["split_gain"], dtype=np.float32, sep=" ")
-            iv = np.fromstring(tree["internal_value"], dtype=np.float64, sep=" ")
-            iw = np.fromstring(tree["internal_weight"], dtype=np.float64, sep=" ")
-            ic = np.fromstring(tree["internal_count"], dtype=np.int32, sep=" ")
-        else:
-            # Single-leaf tree (no splits)
-            sf = np.array([], dtype=np.int32)
-            th = np.array([], dtype=np.float64)
-            dt = np.array([], dtype=np.uint8)
-            lc = np.array([], dtype=np.int32)
-            rc = np.array([], dtype=np.int32)
-            sg = np.array([], dtype=np.float32)
-            iv = np.array([], dtype=np.float64)
-            iw = np.array([], dtype=np.float64)
-            ic = np.array([], dtype=np.int32)
+        for text_key, arr_key, dtype in _SPLIT_FIELDS:
+            if num_splits > 0:
+                split_acc[arr_key].append(
+                    np.fromstring(tree[text_key], dtype=dtype, sep=" ")
+                )
+            else:
+                split_acc[arr_key].append(np.array([], dtype=dtype))
 
-        lv = np.fromstring(tree["leaf_value"], dtype=np.float64, sep=" ")
-        lw = np.fromstring(tree["leaf_weight"], dtype=np.float64, sep=" ")
-        lcount = np.fromstring(tree["leaf_count"], dtype=np.int32, sep=" ")
-
-        all_split_feature.append(sf)
-        all_threshold.append(th)
-        all_decision_type.append(dt)
-        all_left_child.append(lc)
-        all_right_child.append(rc)
-        all_split_gain.append(sg)
-        all_internal_value.append(iv)
-        all_internal_weight.append(iw)
-        all_internal_count.append(ic)
-        all_leaf_value.append(lv)
-        all_leaf_weight.append(lw)
-        all_leaf_count.append(lcount)
+        for text_key, arr_key, dtype in _LEAF_FIELDS:
+            leaf_acc[arr_key].append(
+                np.fromstring(tree[text_key], dtype=dtype, sep=" ")
+            )
 
         split_offsets.append(split_offsets[-1] + num_splits)
         leaf_offsets.append(leaf_offsets[-1] + num_leaves)
@@ -177,76 +164,20 @@ def _extract_columnar(
         num_cats.append(int(tree.get("num_cat", "0")))
         is_linears.append(int(tree.get("is_linear", "0")))
 
-    arrays: dict[str, np.ndarray] = {}
-    arrays["split_offsets"] = np.array(split_offsets, dtype=np.int32)
-    arrays["leaf_offsets"] = np.array(leaf_offsets, dtype=np.int32)
-    arrays["split_feature"] = (
-        np.concatenate(all_split_feature)
-        if all_split_feature
-        else np.array([], dtype=np.int32)
-    )
-    arrays["threshold"] = (
-        np.concatenate(all_threshold)
-        if all_threshold
-        else np.array([], dtype=np.float64)
-    )
-    arrays["decision_type"] = (
-        np.concatenate(all_decision_type)
-        if all_decision_type
-        else np.array([], dtype=np.uint8)
-    )
-    arrays["left_child"] = (
-        np.concatenate(all_left_child)
-        if all_left_child
-        else np.array([], dtype=np.int32)
-    )
-    arrays["right_child"] = (
-        np.concatenate(all_right_child)
-        if all_right_child
-        else np.array([], dtype=np.int32)
-    )
-    arrays["split_gain"] = (
-        np.concatenate(all_split_gain)
-        if all_split_gain
-        else np.array([], dtype=np.float32)
-    )
-    arrays["internal_value"] = (
-        np.concatenate(all_internal_value)
-        if all_internal_value
-        else np.array([], dtype=np.float64)
-    )
-    arrays["internal_weight"] = (
-        np.concatenate(all_internal_weight)
-        if all_internal_weight
-        else np.array([], dtype=np.float64)
-    )
-    arrays["internal_count"] = (
-        np.concatenate(all_internal_count)
-        if all_internal_count
-        else np.array([], dtype=np.int32)
-    )
-    arrays["leaf_value"] = (
-        np.concatenate(all_leaf_value)
-        if all_leaf_value
-        else np.array([], dtype=np.float64)
-    )
-    arrays["leaf_weight"] = (
-        np.concatenate(all_leaf_weight)
-        if all_leaf_weight
-        else np.array([], dtype=np.float64)
-    )
-    arrays["leaf_count"] = (
-        np.concatenate(all_leaf_count)
-        if all_leaf_count
-        else np.array([], dtype=np.int32)
-    )
+    def _concat(arrs: list[np.ndarray]) -> np.ndarray:
+        return np.concatenate(arrs) if arrs and arrs[0].size > 0 else arrs[0]
+
+    arrays: dict[str, np.ndarray] = {
+        "split_offsets": np.array(split_offsets, dtype=np.int32),
+        "leaf_offsets": np.array(leaf_offsets, dtype=np.int32),
+    }
+    for _, arr_key, _ in _SPLIT_FIELDS:
+        arrays[arr_key] = _concat(split_acc[arr_key])
+    for _, arr_key, _ in _LEAF_FIELDS:
+        arrays[arr_key] = _concat(leaf_acc[arr_key])
     arrays["shrinkage"] = np.array(shrinkages, dtype=np.float64)
     arrays["num_cat"] = np.array(num_cats, dtype=np.int32)
     arrays["is_linear"] = np.array(is_linears, dtype=np.int32)
-
-    # Feature info for reconstruction
-    feature_names = header.get("feature_names", "").split(" ")
-    feature_infos_str = header.get("feature_infos", "")
 
     meta: dict[str, Any] = {
         "objective": header.get("objective", ""),
@@ -255,8 +186,8 @@ def _extract_columnar(
         "label_index": int(header.get("label_index", "0")),
         "max_feature_idx": int(header.get("max_feature_idx", "0")),
         "average_output": header.get("average_output", "False") == "True",
-        "feature_names": feature_names,
-        "feature_infos": feature_infos_str,
+        "feature_names": header.get("feature_names", "").split(" "),
+        "feature_infos": header.get("feature_infos", ""),
         "version": header.get("version", "v4"),
         "params": params,
     }
@@ -269,6 +200,13 @@ def _extract_columnar(
 # ---------------------------------------------------------------------------
 
 
+def _format_array(arr: np.ndarray, key: str) -> str:
+    """Format an array as a space-separated string."""
+    if key in _FULL_PRECISION_FIELDS:
+        return " ".join(f"{x:.17g}" for x in arr)
+    return " ".join(str(x) for x in arr)
+
+
 def _rebuild_model_string(
     arrays: dict[str, np.ndarray],
     meta: dict[str, Any],
@@ -278,9 +216,27 @@ def _rebuild_model_string(
     leaf_offsets = arrays["leaf_offsets"]
     n_trees = len(split_offsets) - 1
 
-    # Compute tree_sizes (approximate, LightGBM uses this for seeking)
     tree_sizes: list[int] = []
     tree_sections: list[str] = []
+
+    split_field_names = [
+        ("split_feature", "split_feature"),
+        ("split_gain", "split_gain"),
+        ("threshold", "threshold"),
+        ("decision_type", "decision_type"),
+        ("left_child", "left_child"),
+        ("right_child", "right_child"),
+    ]
+    internal_field_names = [
+        ("internal_value", "internal_value"),
+        ("internal_weight", "internal_weight"),
+        ("internal_count", "internal_count"),
+    ]
+    leaf_field_names = [
+        ("leaf_value", "leaf_value"),
+        ("leaf_weight", "leaf_weight"),
+        ("leaf_count", "leaf_count"),
+    ]
 
     for t in range(n_trees):
         s_start, s_end = int(split_offsets[t]), int(split_offsets[t + 1])
@@ -288,82 +244,42 @@ def _rebuild_model_string(
         n_splits = s_end - s_start
         n_leaves = l_end - l_start
 
-        lines = [f"Tree={t}"]
-        lines.append(f"num_leaves={n_leaves}")
-        lines.append(f"num_cat={int(arrays['num_cat'][t])}")
+        lines = [
+            f"Tree={t}",
+            f"num_leaves={n_leaves}",
+            f"num_cat={int(arrays['num_cat'][t])}",
+        ]
 
-        if n_splits > 0:
-            lines.append(
-                "split_feature="
-                + " ".join(str(x) for x in arrays["split_feature"][s_start:s_end])
-            )
-            lines.append(
-                "split_gain="
-                + " ".join(f"{x}" for x in arrays["split_gain"][s_start:s_end])
-            )
-            lines.append(
-                "threshold="
-                + " ".join(f"{x:.17g}" for x in arrays["threshold"][s_start:s_end])
-            )
-            lines.append(
-                "decision_type="
-                + " ".join(str(x) for x in arrays["decision_type"][s_start:s_end])
-            )
-            lines.append(
-                "left_child="
-                + " ".join(str(x) for x in arrays["left_child"][s_start:s_end])
-            )
-            lines.append(
-                "right_child="
-                + " ".join(str(x) for x in arrays["right_child"][s_start:s_end])
-            )
-        else:
-            lines.append("split_feature=")
-            lines.append("split_gain=")
-            lines.append("threshold=")
-            lines.append("decision_type=")
-            lines.append("left_child=")
-            lines.append("right_child=")
+        for text_key, arr_key in split_field_names:
+            if n_splits > 0:
+                lines.append(
+                    f"{text_key}="
+                    + _format_array(arrays[arr_key][s_start:s_end], arr_key)
+                )
+            else:
+                lines.append(f"{text_key}=")
 
-        lines.append(
-            "leaf_value="
-            + " ".join(f"{x:.17g}" for x in arrays["leaf_value"][l_start:l_end])
-        )
-        lines.append(
-            "leaf_weight="
-            + " ".join(str(x) for x in arrays["leaf_weight"][l_start:l_end])
-        )
-        lines.append(
-            "leaf_count="
-            + " ".join(str(x) for x in arrays["leaf_count"][l_start:l_end])
-        )
+        for text_key, arr_key in leaf_field_names:
+            lines.append(
+                f"{text_key}=" + _format_array(arrays[arr_key][l_start:l_end], arr_key)
+            )
 
-        if n_splits > 0:
-            lines.append(
-                "internal_value="
-                + " ".join(f"{x}" for x in arrays["internal_value"][s_start:s_end])
-            )
-            lines.append(
-                "internal_weight="
-                + " ".join(str(x) for x in arrays["internal_weight"][s_start:s_end])
-            )
-            lines.append(
-                "internal_count="
-                + " ".join(str(x) for x in arrays["internal_count"][s_start:s_end])
-            )
-        else:
-            lines.append("internal_value=")
-            lines.append("internal_weight=")
-            lines.append("internal_count=")
+        for text_key, arr_key in internal_field_names:
+            if n_splits > 0:
+                lines.append(
+                    f"{text_key}="
+                    + _format_array(arrays[arr_key][s_start:s_end], arr_key)
+                )
+            else:
+                lines.append(f"{text_key}=")
 
         lines.append(f"is_linear={int(arrays['is_linear'][t])}")
         lines.append(f"shrinkage={arrays['shrinkage'][t]}")
 
         section = "\n".join(lines)
         tree_sections.append(section)
-        tree_sizes.append(len(section) + 2)  # +2 for surrounding newlines
+        tree_sizes.append(len(section) + 2)
 
-    # Header
     feature_names = meta["feature_names"]
     header_lines = [
         "tree",
@@ -378,7 +294,6 @@ def _rebuild_model_string(
         f"tree_sizes={' '.join(str(s) for s in tree_sizes)}",
     ]
 
-    # Parameters section
     params = meta.get("params", {})
     param_lines = ["parameters:"]
     for k, v in params.items():
@@ -453,11 +368,7 @@ def restore_state(
 
     fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-text")
 
-    if fmt == "columnar-tensors":
-        # Reconstruction happens in restore_arrays where we have access
-        # to the safetensors arrays. Just mark that we need it.
-        pass
-    else:
+    if fmt != "columnar-tensors":
         model_str = fitted_state[f"{prefix}model_str"]
         estimator._Booster = lgb.Booster(model_str=model_str)  # type: ignore[attr-defined]
 
@@ -518,7 +429,6 @@ def restore_arrays(
 
     import lightgbm as lgb
 
-    # Collect the tree arrays from the safetensors namespace
     tree_arrays: dict[str, np.ndarray] = {}
     tree_prefix = f"{prefix}tree/"
     for k, v in arrays.items():

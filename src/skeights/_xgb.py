@@ -44,6 +44,32 @@ def handles(estimator: BaseEstimator) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# Field definitions for columnar extraction
+# ---------------------------------------------------------------------------
+
+# (json_key, array_key, dtype)
+_NODE_FIELDS = [
+    ("split_indices", "split_indices", np.int32),
+    ("split_conditions", "split_conditions", np.float32),
+    ("left_children", "left_children", np.int32),
+    ("right_children", "right_children", np.int32),
+    ("parents", "parents", np.int32),
+    ("default_left", "default_left", np.uint8),
+    ("base_weights", "base_weights", np.float32),
+    ("sum_hessian", "sum_hessian", np.float32),
+    ("loss_changes", "loss_changes", np.float32),
+    ("split_type", "split_type", np.uint8),
+]
+
+_CAT_FIELDS = [
+    "categories",
+    "categories_segments",
+    "categories_sizes",
+    "categories_nodes",
+]
+
+
+# ---------------------------------------------------------------------------
 # Columnar extraction: booster JSON -> arrays + metadata
 # ---------------------------------------------------------------------------
 
@@ -58,26 +84,13 @@ def _extract_columnar(
     model = gbm["model"]
     trees = model["trees"]
 
-    # Per-tree arrays, concatenated
-    all_split_indices: list[np.ndarray] = []
-    all_split_conditions: list[np.ndarray] = []
-    all_left_children: list[np.ndarray] = []
-    all_right_children: list[np.ndarray] = []
-    all_parents: list[np.ndarray] = []
-    all_default_left: list[np.ndarray] = []
-    all_base_weights: list[np.ndarray] = []
-    all_sum_hessian: list[np.ndarray] = []
-    all_loss_changes: list[np.ndarray] = []
-    all_split_type: list[np.ndarray] = []
-
+    # Accumulators: one list of arrays per field
+    node_acc: dict[str, list[np.ndarray]] = {f[1]: [] for f in _NODE_FIELDS}
     offsets = [0]
     tree_params: list[dict[str, str]] = []
 
-    # Categorical split data (concatenated across trees)
-    all_categories: list[int] = []
-    all_categories_segments: list[int] = []
-    all_categories_sizes: list[int] = []
-    all_categories_nodes: list[int] = []
+    # Categorical split data
+    cat_acc: dict[str, list[int]] = {f: [] for f in _CAT_FIELDS}
     cat_offset = 0
 
     for tree in trees:
@@ -85,61 +98,28 @@ def _extract_columnar(
         offsets.append(offsets[-1] + num_nodes)
         tree_params.append(tree["tree_param"])
 
-        all_split_indices.append(np.array(tree["split_indices"], dtype=np.int32))
-        all_split_conditions.append(
-            np.array(tree["split_conditions"], dtype=np.float32)
-        )
-        all_left_children.append(np.array(tree["left_children"], dtype=np.int32))
-        all_right_children.append(np.array(tree["right_children"], dtype=np.int32))
-        all_parents.append(np.array(tree["parents"], dtype=np.int32))
-        all_default_left.append(np.array(tree["default_left"], dtype=np.uint8))
-        all_base_weights.append(np.array(tree["base_weights"], dtype=np.float32))
-        all_sum_hessian.append(np.array(tree["sum_hessian"], dtype=np.float32))
-        all_loss_changes.append(np.array(tree["loss_changes"], dtype=np.float32))
-        all_split_type.append(np.array(tree["split_type"], dtype=np.uint8))
+        for json_key, arr_key, dtype in _NODE_FIELDS:
+            node_acc[arr_key].append(np.array(tree[json_key], dtype=dtype))
 
-        # Categorical data
         cats = tree.get("categories", [])
-        cat_nodes = tree.get("categories_nodes", [])
-        cat_segments = tree.get("categories_segments", [])
-        cat_sizes = tree.get("categories_sizes", [])
-        all_categories.extend(cats)
-        all_categories_nodes.extend(cat_nodes)
-        # Adjust segments by cumulative category offset
-        all_categories_segments.extend(s + cat_offset for s in cat_segments)
-        all_categories_sizes.extend(cat_sizes)
+        cat_acc["categories"].extend(cats)
+        cat_acc["categories_nodes"].extend(tree.get("categories_nodes", []))
+        cat_acc["categories_segments"].extend(
+            s + cat_offset for s in tree.get("categories_segments", [])
+        )
+        cat_acc["categories_sizes"].extend(tree.get("categories_sizes", []))
         cat_offset += len(cats)
-
-    def _concat(arrs: list[np.ndarray], dtype: Any) -> np.ndarray:
-        if arrs:
-            return np.concatenate(arrs)
-        return np.array([], dtype=dtype)
 
     arrays: dict[str, np.ndarray] = {
         "offsets": np.array(offsets, dtype=np.int32),
-        "split_indices": _concat(all_split_indices, np.int32),
-        "split_conditions": _concat(all_split_conditions, np.float32),
-        "left_children": _concat(all_left_children, np.int32),
-        "right_children": _concat(all_right_children, np.int32),
-        "parents": _concat(all_parents, np.int32),
-        "default_left": _concat(all_default_left, np.uint8),
-        "base_weights": _concat(all_base_weights, np.float32),
-        "sum_hessian": _concat(all_sum_hessian, np.float32),
-        "loss_changes": _concat(all_loss_changes, np.float32),
-        "split_type": _concat(all_split_type, np.uint8),
-        "categories": np.array(all_categories, dtype=np.int32)
-        if all_categories
-        else np.array([], dtype=np.int32),
-        "categories_segments": np.array(all_categories_segments, dtype=np.int32)
-        if all_categories_segments
-        else np.array([], dtype=np.int32),
-        "categories_sizes": np.array(all_categories_sizes, dtype=np.int32)
-        if all_categories_sizes
-        else np.array([], dtype=np.int32),
-        "categories_nodes": np.array(all_categories_nodes, dtype=np.int32)
-        if all_categories_nodes
-        else np.array([], dtype=np.int32),
     }
+    for _, arr_key, _ in _NODE_FIELDS:
+        arrays[arr_key] = np.concatenate(node_acc[arr_key])
+    for cat_key in _CAT_FIELDS:
+        vals = cat_acc[cat_key]
+        arrays[cat_key] = (
+            np.array(vals, dtype=np.int32) if vals else np.array([], dtype=np.int32)
+        )
 
     meta: dict[str, Any] = {
         "learner_model_param": learner["learner_model_param"],
@@ -173,38 +153,27 @@ def _rebuild_model_json(
     tree_params = meta["tree_params"]
 
     trees = []
-
     for t in range(n_trees):
         start, end = int(offsets[t]), int(offsets[t + 1])
-
-        tree_dict: dict[str, Any] = {
-            "base_weights": arrays["base_weights"][start:end].tolist(),
-            "categories": [],
-            "categories_nodes": [],
-            "categories_segments": [],
-            "categories_sizes": [],
-            "default_left": arrays["default_left"][start:end].tolist(),
-            "id": t,
-            "left_children": arrays["left_children"][start:end].tolist(),
-            "loss_changes": arrays["loss_changes"][start:end].tolist(),
-            "parents": arrays["parents"][start:end].tolist(),
-            "right_children": arrays["right_children"][start:end].tolist(),
-            "split_conditions": arrays["split_conditions"][start:end].tolist(),
-            "split_indices": arrays["split_indices"][start:end].tolist(),
-            "split_type": arrays["split_type"][start:end].tolist(),
-            "sum_hessian": arrays["sum_hessian"][start:end].tolist(),
-            "tree_param": tree_params[t],
-        }
+        tree_dict: dict[str, Any] = {"id": t, "tree_param": tree_params[t]}
+        for json_key, arr_key, _ in _NODE_FIELDS:
+            tree_dict[json_key] = arrays[arr_key][start:end].tolist()
+        for cat_key in _CAT_FIELDS:
+            tree_dict[cat_key] = []
         trees.append(tree_dict)
 
-    model_json: dict[str, Any] = {
+    return {
         "learner": {
             "attributes": meta.get("attributes", {}),
             "feature_names": meta["feature_names"],
             "feature_types": meta["feature_types"],
             "gradient_booster": {
                 "model": {
-                    "cats": {"enc": [], "feature_segments": [], "sorted_idx": []},
+                    "cats": {
+                        "enc": [],
+                        "feature_segments": [],
+                        "sorted_idx": [],
+                    },
                     "gbtree_model_param": meta["gbtree_model_param"],
                     "iteration_indptr": meta["iteration_indptr"],
                     "tree_info": meta["tree_info"],
@@ -217,8 +186,6 @@ def _rebuild_model_json(
         },
         "version": meta["version"],
     }
-
-    return model_json
 
 
 # ---------------------------------------------------------------------------
@@ -264,11 +231,7 @@ def restore_state(
 
     fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-json")
 
-    if fmt == "columnar-tensors":
-        # Reconstruction happens in restore_arrays where we have the
-        # safetensors arrays.
-        pass
-    else:
+    if fmt != "columnar-tensors":
         model_json = fitted_state[f"{prefix}model_json"]
         model_bytes = bytearray(json.dumps(model_json).encode())
         booster = xgb.Booster()
