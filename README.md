@@ -46,11 +46,9 @@ maintained, scikit-learn-adjacent option for secure persistence,
 referenced in sklearn's own docs. It covers pipelines, XGBoost,
 LightGBM, has compression, model inspection, and Hugging Face Hub
 integration. Reach for skops if you want the broadest, most
-battle-tested secure persistence and do not specifically need the
-safetensors format or the readable-config / compact-weights split.
-Use skeights if you want human-readable model config (diffable
-JSON hyperparameters), compact safetensors-native storage
-(memory-mappable, cross-language), or both.
+battle-tested secure persistence and do not need to inspect
+model config without loading it. Use skeights if you want
+human-readable, diffable model configuration.
 
 **[sklearn-migrator](https://github.com/anvaldes/sklearn-migrator)**
 is purpose-built for loading models across different sklearn
