@@ -54,7 +54,7 @@ human-readable, diffable model configuration.
 is purpose-built for loading models across different sklearn
 versions, with a peer-reviewed paper behind it. Reach for it if
 cross-version migration is your problem. skeights does not guarantee
-cross-version support. Note that sklearn-migrator does not cover
+cross-version support. Note that sklearn-migrator does not yet cover
 pipelines, XGBoost, or LightGBM, which skeights does.
 
 **[sklearn-json](https://github.com/mlrequest/sklearn-json)** stores
