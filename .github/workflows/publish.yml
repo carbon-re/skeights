@@ -22,12 +22,6 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version="${GITHUB_REF_NAME#v}"
-          # Extract the section for this version from CHANGELOG.md
-          notes=$(awk "/^## ${version}\$/{found=1; next} /^## /{if(found) exit} found{print}" CHANGELOG.md)
-          if [ -z "$notes" ]; then
-            notes="See [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details."
-          fi
           gh release create "$GITHUB_REF_NAME" dist/* \
             --title "$GITHUB_REF_NAME" \
-            --notes "$notes"
+            --generate-notes
