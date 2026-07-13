@@ -108,16 +108,16 @@ loaded = skeights.load("model.safetensors", "model.json")
 predictions = loaded.predict(X_test)
 ```
 
-## API
+### API
 
 | Function | Description |
 |---|---|
-| `save(estimator, arrays_path, state_path, format=None)` | Serialize to safetensors + JSON files |
-| `load(arrays_path, state_path)` | Load from files, return fitted estimator |
-| `serialize(estimator, format=None)` | Return `(state_dict, arrays_dict)` in memory |
-| `deserialize(state, arrays)` | Reconstruct estimator from dicts |
-| `get_model_params(estimator)` | Recursively extract hyperparameters (handles Pipelines, kernels, TTR) |
-| `set_model_params(estimator, params)` | Recursively set hyperparameters |
+| `save(estimator: BaseEstimator, arrays_path: str, state_path: str, format: str \| None = None) -> None` | Serialize to safetensors + JSON files |
+| `load(arrays_path: str, state_path: str) -> BaseEstimator` | Load from files, return fitted estimator |
+| `serialize(estimator: BaseEstimator, format: str \| None = None) -> tuple[dict, dict]` | Return `(state_dict, arrays_dict)` in memory |
+| `deserialize(state: dict, arrays: dict) -> BaseEstimator` | Reconstruct estimator from dicts |
+| `get_model_params(estimator: BaseEstimator) -> dict` | Recursively extract hyperparameters |
+| `set_model_params(estimator: BaseEstimator, params: dict) -> None` | Recursively set hyperparameters |
 
 ## Supported estimators
 
