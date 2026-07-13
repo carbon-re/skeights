@@ -19,15 +19,11 @@ skeights splits a model into two layers:
 - **`.json`**: hyperparameters, fitted scalars, and structural config.
   Human-readable, greppable, diffable. You can inspect how a model
   is configured without deserializing it or running any code.
-- **`.safetensors`**: the numeric bulk -- coefficients, tree split
-  arrays, leaf values -- as dense typed arrays in the
+- **`.safetensors`**: the numeric bulk (coefficients, tree split
+  arrays, leaf values) as dense typed arrays in the
   [safetensors](https://github.com/huggingface/safetensors) format.
-
-The JSON layer makes configuration inspectable. The tensor layer is
-where the compactness comes from: typed binary arrays instead of
-numbers encoded as text, which matters most for large tree ensembles.
-The full model is not "human-readable" -- the numeric contents live
-in the tensors -- but the parts you actually want to inspect are.
+  Typed binary arrays instead of numbers encoded as text, which
+  matters most for large tree ensembles.
 
 Why safetensors specifically: it is memory-mappable,
 language-agnostic, and widely adopted across the ML ecosystem. The
@@ -133,7 +129,7 @@ skeights.save(model, "model.safetensors", "model.json", format="native")
 ```
 
 Artifacts saved with older versions of skeights (before columnar
-support) are loaded transparently -- no migration needed.
+support) are loaded transparently, no migration needed.
 
 ## Compatibility
 
