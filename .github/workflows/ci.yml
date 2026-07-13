@@ -36,6 +36,24 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
+        sklearn-version: ["1.5", "1.6"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install dependencies
+        run: |
+          pip install -e ".[dev]"
+          pip install "scikit-learn==${{ matrix.sklearn-version }}.*"
+      - run: pytest tests/ -v
+
+  test-latest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -44,40 +62,22 @@ jobs:
       - run: pip install -e ".[dev]"
       - run: pytest tests/ -v
 
-  test-sklearn:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        sklearn-version: ["1.5", "1.6"]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - name: Install dependencies
-        run: |
-          pip install -e ".[dev]"
-          pip install "scikit-learn==${{ matrix.sklearn-version }}.*"
-      - run: pytest tests/ -v
-
   test-tree-libs:
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - tree-lib: lightgbm
-            version: "4.4"
-          - tree-lib: xgboost
-            version: "2.1"
+        python-version: ["3.11", "3.12", "3.13"]
+        tree-lib:
+          - { name: lightgbm, version: "4.4" }
+          - { name: xgboost, version: "2.1" }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.12"
+          python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
           pip install -e ".[dev]"
-          pip install "${{ matrix.tree-lib }}==${{ matrix.version }}.*"
+          pip install "${{ matrix.tree-lib.name }}==${{ matrix.tree-lib.version }}.*"
       - run: pytest tests/ -v
