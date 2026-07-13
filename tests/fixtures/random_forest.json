@@ -1,8 +1,4 @@
 {
-  "skeights_version": {
-    "skeights": "0.1.0",
-    "sklearn": "1.5.2"
-  },
   "model_params": {
     "bootstrap": true,
     "ccp_alpha": 0.0,
@@ -233,5 +229,9 @@
     ],
     "n_features_in_": 3,
     "n_outputs_": 1
+  },
+  "skeights_version": {
+    "skeights": "0.2.1",
+    "sklearn": "1.5.2"
   }
 }

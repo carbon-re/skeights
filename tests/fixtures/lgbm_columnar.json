@@ -68,7 +68,6 @@
         "neg_bagging_fraction": "1",
         "bagging_freq": "0",
         "bagging_seed": "3",
-        "bagging_by_query": "0",
         "feature_fraction": "1",
         "feature_fraction_bynode": "1",
         "feature_fraction_seed": "2",
@@ -172,7 +171,7 @@
   },
   "skeights_version": {
     "skeights": "0.2.1",
-    "sklearn": "1.9.0",
-    "lightgbm": "4.6.0"
+    "sklearn": "1.5.2",
+    "lightgbm": "4.4.0"
   }
 }

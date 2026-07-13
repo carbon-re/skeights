@@ -1,9 +1,4 @@
 {
-  "skeights_version": {
-    "skeights": "0.1.0",
-    "sklearn": "1.5.2",
-    "xgboost": "3.3.0"
-  },
   "model_params": {
     "objective": "reg:squarederror",
     "base_score": null,
@@ -14,10 +9,9 @@
     "colsample_bytree": null,
     "device": null,
     "early_stopping_rounds": null,
-    "enable_categorical": true,
+    "enable_categorical": false,
     "eval_metric": null,
     "feature_types": null,
-    "feature_weights": null,
     "gamma": null,
     "grow_policy": null,
     "importance_type": null,
@@ -48,6 +42,11 @@
     "type": "xgboost.sklearn.XGBRegressor"
   },
   "fitted_state": {
+    "__format__": {
+      "library": "xgboost",
+      "format": "native-json",
+      "schema_version": 1
+    },
     "model_json": {
       "learner": {
         "attributes": {},
@@ -55,11 +54,6 @@
         "feature_types": [],
         "gradient_booster": {
           "model": {
-            "cats": {
-              "enc": [],
-              "feature_segments": [],
-              "sorted_idx": []
-            },
             "gbtree_model_param": {
               "num_parallel_tree": "1",
               "num_trees": "5"
@@ -980,7 +974,7 @@
           "name": "gbtree"
         },
         "learner_model_param": {
-          "base_score": "[-9.841837E-2]",
+          "base_score": "-9.841837E-2",
           "boost_from_average": "1",
           "num_class": "0",
           "num_feature": "3",
@@ -994,10 +988,15 @@
         }
       },
       "version": [
-        3,
-        3,
-        0
+        2,
+        1,
+        4
       ]
     }
+  },
+  "skeights_version": {
+    "skeights": "0.2.1",
+    "sklearn": "1.5.2",
+    "xgboost": "2.1.4"
   }
 }
