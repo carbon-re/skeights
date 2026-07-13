@@ -1,8 +1,4 @@
 {
-  "skeights_version": {
-    "skeights": "0.1.0",
-    "sklearn": "1.5.2"
-  },
   "model_params": {
     "categorical_features": "warn",
     "early_stopping": "auto",
@@ -99,5 +95,9 @@
         "<u4"
       ]
     ]
+  },
+  "skeights_version": {
+    "skeights": "0.2.1",
+    "sklearn": "1.5.2"
   }
 }

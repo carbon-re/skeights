@@ -19,7 +19,9 @@ def handles(estimator: BaseEstimator) -> bool:
     return isinstance(estimator, (GaussianProcessRegressor, GaussianProcessClassifier))
 
 
-def collect_state(estimator: BaseEstimator, prefix: str) -> dict[str, Any]:
+def collect_state(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, Any]:
     """Collect non-array fitted state from a GP estimator."""
     state: dict[str, Any] = {}
     if hasattr(estimator, "log_marginal_likelihood_value_"):
@@ -80,7 +82,9 @@ def restore_state(
                 be.log_marginal_likelihood_value_ = fitted_state[be_lml_key]  # type: ignore[union-attr]
 
 
-def extract_arrays(estimator: BaseEstimator, prefix: str) -> dict[str, np.ndarray]:
+def extract_arrays(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, np.ndarray]:
     """Extract arrays from a GP estimator."""
 
     def _key(name: str) -> str:

@@ -59,9 +59,9 @@ predictions = loaded.predict(X_test)
 
 | Function | Description |
 |---|---|
-| `save(estimator, arrays_path, state_path)` | Serialize to safetensors + JSON files |
+| `save(estimator, arrays_path, state_path, format=None)` | Serialize to safetensors + JSON files |
 | `load(arrays_path, state_path)` | Load from files, return fitted estimator |
-| `serialize(estimator)` | Return `(state_dict, arrays_dict)` in memory |
+| `serialize(estimator, format=None)` | Return `(state_dict, arrays_dict)` in memory |
 | `deserialize(state, arrays)` | Reconstruct estimator from dicts |
 | `get_model_params(estimator)` | Recursively extract hyperparameters (handles Pipelines, kernels, TTR) |
 | `set_model_params(estimator, params)` | Recursively set hyperparameters |
@@ -74,12 +74,29 @@ predictions = loaded.predict(X_test)
 - **RandomForestRegressor / Classifier**: full tree serialization
 - **GradientBoostingRegressor / Classifier**: including init estimator
 - **HistGradientBoostingRegressor / Classifier**: including bin mapper state
-- **LGBMRegressor / Classifier**: via booster model string
-- **XGBRegressor / Classifier**: via booster JSON
+- **LGBMRegressor / Classifier**: columnar tensors (default) or native text
+- **XGBRegressor / Classifier**: columnar tensors (default) or native JSON
 - **GaussianProcessRegressor / Classifier**: including composite kernels
 - **TransformedTargetRegressor**: target scaling wrappers
 - **Scalers**: StandardScaler, MinMaxScaler, RobustScaler
 - **Pipelines**: any Pipeline composed of supported estimators
+
+## Tree model formats
+
+LightGBM and XGBoost models are serialized as columnar tensors by
+default: split features, thresholds, child pointers, and leaf values
+are stored as typed numpy arrays in safetensors, with only small
+scalar config (objective, feature names, etc.) in JSON.
+
+This gives 30-85% smaller files compared to the native format and
+makes the JSON human-readable. To use the native format instead:
+
+```python
+skeights.save(model, "model.safetensors", "model.json", format="native")
+```
+
+Artifacts saved with older versions of skeights (before columnar
+support) are loaded transparently -- no migration needed.
 
 ## Compatibility
 
