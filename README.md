@@ -10,21 +10,36 @@ No pickle. No joblib. Just weights and config.
 
 ## Why?
 
-Pickle is the default way to save sklearn models, but it's:
-- **Insecure**: arbitrary code execution on load
-- **Fragile**: breaks across sklearn versions, Python versions, and platforms
-- **Opaque**: you can't inspect what's inside
+Pickle is the default way to save sklearn models, but it's insecure
+(arbitrary code execution on load), fragile (breaks across versions),
+and opaque (you can't inspect what's inside without loading it).
 
-[skops](https://github.com/skops-dev/skops) solves the security
-problem by replacing pickle with a safe binary format, but the
-output is still a single opaque blob; you can't easily inspect
-the hyperparameters or diff two versions of a model.
+skeights splits a model into two layers:
 
-skeights separates structure from weights:
-- **`.json`**: hyperparameters and scalar fitted state,
-  human-readable and diffable
-- **`.safetensors`**: numeric arrays (weights, fitted params)
-  in a safe, fast, widely-supported format
+- **`.json`**: hyperparameters, fitted scalars, and structural config.
+  Human-readable, greppable, diffable. You can inspect how a model
+  is configured without deserializing it or running any code.
+- **`.safetensors`**: the numeric bulk -- coefficients, tree split
+  arrays, leaf values -- as dense typed arrays in the
+  [safetensors](https://github.com/huggingface/safetensors) format.
+
+The JSON layer makes configuration inspectable. The tensor layer is
+where the compactness comes from: typed binary arrays instead of
+numbers encoded as text, which matters most for large tree ensembles.
+The full model is not "human-readable" -- the numeric contents live
+in the tensors -- but the parts you actually want to inspect are.
+
+Why safetensors specifically: it is memory-mappable,
+language-agnostic, and widely adopted across the ML ecosystem. The
+weight payload is readable outside Python and outside skeights.
+Loading safetensors does not execute arbitrary code.
+
+**Security note**: skeights does not use pickle or joblib. However,
+the JSON state file names the Python classes to instantiate (e.g.
+`sklearn.linear_model.Ridge`), and the loader imports these via
+`importlib`. This means a crafted JSON file could cause arbitrary
+module imports. Treat the JSON file as trusted input, the same way
+you would treat a config file that names Python classes.
 
 ## Install
 
@@ -68,18 +83,42 @@ predictions = loaded.predict(X_test)
 
 ## Supported estimators
 
-- **Linear models**: Ridge, Lasso, LinearRegression, LogisticRegression, etc.
-- **MLPRegressor / Classifier**: multi-layer perceptron
-- **DecisionTreeRegressor / Classifier**: full tree serialization
-- **RandomForestRegressor / Classifier**: full tree serialization
-- **GradientBoostingRegressor / Classifier**: including init estimator
-- **HistGradientBoostingRegressor / Classifier**: including bin mapper state
-- **LGBMRegressor / Classifier**: via booster model string
-- **XGBRegressor / Classifier**: via booster JSON
-- **GaussianProcessRegressor / Classifier**: including composite kernels
-- **TransformedTargetRegressor**: target scaling wrappers
-- **Scalers**: StandardScaler, MinMaxScaler, RobustScaler
-- **Pipelines**: any Pipeline composed of supported estimators
+| Status | Estimators |
+|---|---|
+| **Supported** | Ridge, Lasso, LinearRegression, LogisticRegression, and other linear models. MLPRegressor/Classifier. DecisionTree, RandomForest, GradientBoosting, HistGradientBoosting (regressors and classifiers). LGBMRegressor/Classifier, XGBRegressor/Classifier. GaussianProcessRegressor/Classifier (including composite kernels). TransformedTargetRegressor. StandardScaler, MinMaxScaler, RobustScaler. Pipelines composed of any of the above. |
+| **Not yet implemented** | CatBoost, other ensemble meta-estimators (VotingClassifier, StackingRegressor, etc.), PCA and other decomposition transforms. Open an issue or PR if you need any of these. |
+| **Not planned** | Cross-version sklearn migration (use [sklearn-migrator](https://github.com/ibis-ssl/sklearn-migrator)). General-purpose secure persistence with broad estimator coverage (use [skops](https://github.com/skops-dev/skops)). |
+
+## When to use something else
+
+There are other tools for serializing sklearn models. Here is when
+to reach for them instead.
+
+**[skops](https://github.com/skops-dev/skops)** is the actively
+maintained, scikit-learn-adjacent option for secure persistence,
+referenced in sklearn's own docs. It covers pipelines, XGBoost,
+LightGBM, has compression, model inspection, and Hugging Face Hub
+integration. Reach for skops if you want the broadest, most
+battle-tested secure persistence and do not specifically need the
+safetensors format or the readable-config / compact-weights split.
+skeights' differentiator over skops is narrow: safetensors-native
+storage (standard, memory-mappable, cross-language) with a
+structure/weights separation that makes config inspectable and
+tree ensembles compact.
+
+**[sklearn-migrator](https://github.com/ibis-ssl/sklearn-migrator)**
+is purpose-built for loading models across different sklearn
+versions, with a peer-reviewed paper behind it. Reach for it if
+cross-version migration is your problem. skeights does not guarantee
+cross-version support. Note that sklearn-migrator does not cover
+pipelines, which skeights does.
+
+**[sklearn-json](https://github.com/mlrequest/sklearn-json)** stores
+models as JSON. It has not been updated in several years.
+
+> **Note**: the feature descriptions of skops and sklearn-migrator
+> above reflect their state as of mid-2025. Check their current
+> docs for the latest.
 
 ## Compatibility
 
