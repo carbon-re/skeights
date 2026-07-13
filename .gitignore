@@ -6,3 +6,4 @@ build/
 .venv/
 *.safetensors
 !tests/fixtures/*.safetensors
+src/skeights/_version.py
