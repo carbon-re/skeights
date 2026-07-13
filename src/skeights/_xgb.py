@@ -16,7 +16,6 @@ from typing import Any
 import numpy as np
 from sklearn.base import BaseEstimator
 
-
 # ---------------------------------------------------------------------------
 # Type checks
 # ---------------------------------------------------------------------------
@@ -87,7 +86,9 @@ def _extract_columnar(
         tree_params.append(tree["tree_param"])
 
         all_split_indices.append(np.array(tree["split_indices"], dtype=np.int32))
-        all_split_conditions.append(np.array(tree["split_conditions"], dtype=np.float32))
+        all_split_conditions.append(
+            np.array(tree["split_conditions"], dtype=np.float32)
+        )
         all_left_children.append(np.array(tree["left_children"], dtype=np.int32))
         all_right_children.append(np.array(tree["right_children"], dtype=np.int32))
         all_parents.append(np.array(tree["parents"], dtype=np.int32))
@@ -126,10 +127,18 @@ def _extract_columnar(
         "sum_hessian": _concat(all_sum_hessian, np.float32),
         "loss_changes": _concat(all_loss_changes, np.float32),
         "split_type": _concat(all_split_type, np.uint8),
-        "categories": np.array(all_categories, dtype=np.int32) if all_categories else np.array([], dtype=np.int32),
-        "categories_segments": np.array(all_categories_segments, dtype=np.int32) if all_categories_segments else np.array([], dtype=np.int32),
-        "categories_sizes": np.array(all_categories_sizes, dtype=np.int32) if all_categories_sizes else np.array([], dtype=np.int32),
-        "categories_nodes": np.array(all_categories_nodes, dtype=np.int32) if all_categories_nodes else np.array([], dtype=np.int32),
+        "categories": np.array(all_categories, dtype=np.int32)
+        if all_categories
+        else np.array([], dtype=np.int32),
+        "categories_segments": np.array(all_categories_segments, dtype=np.int32)
+        if all_categories_segments
+        else np.array([], dtype=np.int32),
+        "categories_sizes": np.array(all_categories_sizes, dtype=np.int32)
+        if all_categories_sizes
+        else np.array([], dtype=np.int32),
+        "categories_nodes": np.array(all_categories_nodes, dtype=np.int32)
+        if all_categories_nodes
+        else np.array([], dtype=np.int32),
     }
 
     meta: dict[str, Any] = {
@@ -164,39 +173,16 @@ def _rebuild_model_json(
     tree_params = meta["tree_params"]
 
     trees = []
-    cat_seg_idx = 0  # track position in categories arrays
 
     for t in range(n_trees):
         start, end = int(offsets[t]), int(offsets[t + 1])
-        num_nodes = end - start
-
-        # Count categorical splits for this tree
-        n_cat_nodes = 0
-        cat_nodes_list: list[int] = []
-        cat_segments_list: list[int] = []
-        cat_sizes_list: list[int] = []
-        cat_values_list: list[int] = []
-
-        if len(arrays["categories_nodes"]) > 0:
-            # Find category entries for this tree by checking node indices
-            # Categories_nodes stores node indices within the tree
-            all_cat_nodes = arrays["categories_nodes"]
-            all_cat_segments = arrays["categories_segments"]
-            all_cat_sizes = arrays["categories_sizes"]
-            all_categories = arrays["categories"]
-
-            # We need to figure out which category entries belong to this tree.
-            # Since we concatenated with adjusted segments, we need a different approach.
-            # For now, trees without categorical splits will have empty arrays.
-            # TODO: proper categorical split reconstruction if needed
-            pass
 
         tree_dict: dict[str, Any] = {
             "base_weights": arrays["base_weights"][start:end].tolist(),
-            "categories": cat_values_list,
-            "categories_nodes": cat_nodes_list,
-            "categories_segments": cat_segments_list,
-            "categories_sizes": cat_sizes_list,
+            "categories": [],
+            "categories_nodes": [],
+            "categories_segments": [],
+            "categories_sizes": [],
             "default_left": arrays["default_left"][start:end].tolist(),
             "id": t,
             "left_children": arrays["left_children"][start:end].tolist(),
@@ -240,7 +226,9 @@ def _rebuild_model_json(
 # ---------------------------------------------------------------------------
 
 
-def collect_state(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, Any]:
+def collect_state(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, Any]:
     state: dict[str, Any] = {}
     booster = estimator.get_booster()  # type: ignore[attr-defined]
 
@@ -291,7 +279,9 @@ def restore_state(
         estimator.n_classes_ = fitted_state[f"{prefix}n_classes"]  # type: ignore[attr-defined]
 
 
-def extract_arrays(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, np.ndarray]:
+def extract_arrays(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, np.ndarray]:
     arrays: dict[str, np.ndarray] = {}
 
     if format != "native":
@@ -326,7 +316,7 @@ def restore_arrays(
     tree_prefix = f"{prefix}tree/"
     for k, v in arrays.items():
         if k.startswith(tree_prefix):
-            tree_arrays[k[len(tree_prefix):]] = v
+            tree_arrays[k[len(tree_prefix) :]] = v
 
     meta = fitted_state[f"{prefix}tree"]
     model_json = _rebuild_model_json(tree_arrays, meta)

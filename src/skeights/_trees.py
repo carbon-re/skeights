@@ -288,7 +288,9 @@ def _restore_tree_ensemble(
 # ---------------------------------------------------------------------------
 
 
-def collect_state(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, Any]:
+def collect_state(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, Any]:
     """Collect fitted state for tree-based estimators."""
     state: dict[str, Any] = {}
     if isinstance(estimator, (_RandomForest, _GradientBoosting)):
@@ -317,7 +319,9 @@ def restore_state(
     return
 
 
-def extract_arrays(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, np.ndarray]:
+def extract_arrays(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, np.ndarray]:
     """Extract arrays from tree-based estimators."""
     if isinstance(estimator, (_RandomForest, _GradientBoosting)):
         return _arrays_from_tree_ensemble(estimator, prefix)  # type: ignore[arg-type]

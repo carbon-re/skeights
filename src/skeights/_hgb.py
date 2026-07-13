@@ -19,7 +19,9 @@ def handles(estimator: BaseEstimator) -> bool:
     )
 
 
-def collect_state(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, Any]:
+def collect_state(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, Any]:
     """Collect non-array fitted state from an HGB estimator."""
     assert isinstance(
         estimator, (HistGradientBoostingClassifier, HistGradientBoostingRegressor)
@@ -65,7 +67,9 @@ def restore_state(
     return
 
 
-def extract_arrays(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, np.ndarray]:
+def extract_arrays(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, np.ndarray]:
     """Extract arrays from an HGB estimator."""
     assert isinstance(
         estimator, (HistGradientBoostingClassifier, HistGradientBoostingRegressor)

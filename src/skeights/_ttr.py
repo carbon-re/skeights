@@ -14,7 +14,9 @@ def handles(estimator: BaseEstimator) -> bool:
     return isinstance(estimator, TransformedTargetRegressor)
 
 
-def collect_state(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, Any]:
+def collect_state(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, Any]:
     """Collect non-array fitted state from a TTR estimator."""
     from skeights._core import _collect_fitted_state
 
@@ -67,7 +69,9 @@ def restore_state(
         )
 
 
-def extract_arrays(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, np.ndarray]:
+def extract_arrays(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, np.ndarray]:
     """Extract arrays from a TTR estimator."""
     from skeights._core import _arrays_from_estimator
 

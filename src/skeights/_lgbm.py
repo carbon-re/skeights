@@ -15,7 +15,6 @@ from typing import Any
 import numpy as np
 from sklearn.base import BaseEstimator
 
-
 # ---------------------------------------------------------------------------
 # Type checks
 # ---------------------------------------------------------------------------
@@ -181,18 +180,66 @@ def _extract_columnar(
     arrays: dict[str, np.ndarray] = {}
     arrays["split_offsets"] = np.array(split_offsets, dtype=np.int32)
     arrays["leaf_offsets"] = np.array(leaf_offsets, dtype=np.int32)
-    arrays["split_feature"] = np.concatenate(all_split_feature) if all_split_feature else np.array([], dtype=np.int32)
-    arrays["threshold"] = np.concatenate(all_threshold) if all_threshold else np.array([], dtype=np.float64)
-    arrays["decision_type"] = np.concatenate(all_decision_type) if all_decision_type else np.array([], dtype=np.uint8)
-    arrays["left_child"] = np.concatenate(all_left_child) if all_left_child else np.array([], dtype=np.int32)
-    arrays["right_child"] = np.concatenate(all_right_child) if all_right_child else np.array([], dtype=np.int32)
-    arrays["split_gain"] = np.concatenate(all_split_gain) if all_split_gain else np.array([], dtype=np.float32)
-    arrays["internal_value"] = np.concatenate(all_internal_value) if all_internal_value else np.array([], dtype=np.float64)
-    arrays["internal_weight"] = np.concatenate(all_internal_weight) if all_internal_weight else np.array([], dtype=np.float64)
-    arrays["internal_count"] = np.concatenate(all_internal_count) if all_internal_count else np.array([], dtype=np.int32)
-    arrays["leaf_value"] = np.concatenate(all_leaf_value) if all_leaf_value else np.array([], dtype=np.float64)
-    arrays["leaf_weight"] = np.concatenate(all_leaf_weight) if all_leaf_weight else np.array([], dtype=np.float64)
-    arrays["leaf_count"] = np.concatenate(all_leaf_count) if all_leaf_count else np.array([], dtype=np.int32)
+    arrays["split_feature"] = (
+        np.concatenate(all_split_feature)
+        if all_split_feature
+        else np.array([], dtype=np.int32)
+    )
+    arrays["threshold"] = (
+        np.concatenate(all_threshold)
+        if all_threshold
+        else np.array([], dtype=np.float64)
+    )
+    arrays["decision_type"] = (
+        np.concatenate(all_decision_type)
+        if all_decision_type
+        else np.array([], dtype=np.uint8)
+    )
+    arrays["left_child"] = (
+        np.concatenate(all_left_child)
+        if all_left_child
+        else np.array([], dtype=np.int32)
+    )
+    arrays["right_child"] = (
+        np.concatenate(all_right_child)
+        if all_right_child
+        else np.array([], dtype=np.int32)
+    )
+    arrays["split_gain"] = (
+        np.concatenate(all_split_gain)
+        if all_split_gain
+        else np.array([], dtype=np.float32)
+    )
+    arrays["internal_value"] = (
+        np.concatenate(all_internal_value)
+        if all_internal_value
+        else np.array([], dtype=np.float64)
+    )
+    arrays["internal_weight"] = (
+        np.concatenate(all_internal_weight)
+        if all_internal_weight
+        else np.array([], dtype=np.float64)
+    )
+    arrays["internal_count"] = (
+        np.concatenate(all_internal_count)
+        if all_internal_count
+        else np.array([], dtype=np.int32)
+    )
+    arrays["leaf_value"] = (
+        np.concatenate(all_leaf_value)
+        if all_leaf_value
+        else np.array([], dtype=np.float64)
+    )
+    arrays["leaf_weight"] = (
+        np.concatenate(all_leaf_weight)
+        if all_leaf_weight
+        else np.array([], dtype=np.float64)
+    )
+    arrays["leaf_count"] = (
+        np.concatenate(all_leaf_count)
+        if all_leaf_count
+        else np.array([], dtype=np.int32)
+    )
     arrays["shrinkage"] = np.array(shrinkages, dtype=np.float64)
     arrays["num_cat"] = np.array(num_cats, dtype=np.int32)
     arrays["is_linear"] = np.array(is_linears, dtype=np.int32)
@@ -246,12 +293,30 @@ def _rebuild_model_string(
         lines.append(f"num_cat={int(arrays['num_cat'][t])}")
 
         if n_splits > 0:
-            lines.append("split_feature=" + " ".join(str(x) for x in arrays["split_feature"][s_start:s_end]))
-            lines.append("split_gain=" + " ".join(f"{x}" for x in arrays["split_gain"][s_start:s_end]))
-            lines.append("threshold=" + " ".join(f"{x:.17g}" for x in arrays["threshold"][s_start:s_end]))
-            lines.append("decision_type=" + " ".join(str(x) for x in arrays["decision_type"][s_start:s_end]))
-            lines.append("left_child=" + " ".join(str(x) for x in arrays["left_child"][s_start:s_end]))
-            lines.append("right_child=" + " ".join(str(x) for x in arrays["right_child"][s_start:s_end]))
+            lines.append(
+                "split_feature="
+                + " ".join(str(x) for x in arrays["split_feature"][s_start:s_end])
+            )
+            lines.append(
+                "split_gain="
+                + " ".join(f"{x}" for x in arrays["split_gain"][s_start:s_end])
+            )
+            lines.append(
+                "threshold="
+                + " ".join(f"{x:.17g}" for x in arrays["threshold"][s_start:s_end])
+            )
+            lines.append(
+                "decision_type="
+                + " ".join(str(x) for x in arrays["decision_type"][s_start:s_end])
+            )
+            lines.append(
+                "left_child="
+                + " ".join(str(x) for x in arrays["left_child"][s_start:s_end])
+            )
+            lines.append(
+                "right_child="
+                + " ".join(str(x) for x in arrays["right_child"][s_start:s_end])
+            )
         else:
             lines.append("split_feature=")
             lines.append("split_gain=")
@@ -260,14 +325,32 @@ def _rebuild_model_string(
             lines.append("left_child=")
             lines.append("right_child=")
 
-        lines.append("leaf_value=" + " ".join(f"{x:.17g}" for x in arrays["leaf_value"][l_start:l_end]))
-        lines.append("leaf_weight=" + " ".join(str(x) for x in arrays["leaf_weight"][l_start:l_end]))
-        lines.append("leaf_count=" + " ".join(str(x) for x in arrays["leaf_count"][l_start:l_end]))
+        lines.append(
+            "leaf_value="
+            + " ".join(f"{x:.17g}" for x in arrays["leaf_value"][l_start:l_end])
+        )
+        lines.append(
+            "leaf_weight="
+            + " ".join(str(x) for x in arrays["leaf_weight"][l_start:l_end])
+        )
+        lines.append(
+            "leaf_count="
+            + " ".join(str(x) for x in arrays["leaf_count"][l_start:l_end])
+        )
 
         if n_splits > 0:
-            lines.append("internal_value=" + " ".join(f"{x}" for x in arrays["internal_value"][s_start:s_end]))
-            lines.append("internal_weight=" + " ".join(str(x) for x in arrays["internal_weight"][s_start:s_end]))
-            lines.append("internal_count=" + " ".join(str(x) for x in arrays["internal_count"][s_start:s_end]))
+            lines.append(
+                "internal_value="
+                + " ".join(f"{x}" for x in arrays["internal_value"][s_start:s_end])
+            )
+            lines.append(
+                "internal_weight="
+                + " ".join(str(x) for x in arrays["internal_weight"][s_start:s_end])
+            )
+            lines.append(
+                "internal_count="
+                + " ".join(str(x) for x in arrays["internal_count"][s_start:s_end])
+            )
         else:
             lines.append("internal_value=")
             lines.append("internal_weight=")
@@ -325,7 +408,9 @@ def _rebuild_model_string(
 # ---------------------------------------------------------------------------
 
 
-def collect_state(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, Any]:
+def collect_state(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, Any]:
     state: dict[str, Any] = {}
 
     if format == "native":
@@ -397,7 +482,9 @@ def restore_state(
         estimator._le = le  # type: ignore[attr-defined]
 
 
-def extract_arrays(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, np.ndarray]:
+def extract_arrays(
+    estimator: BaseEstimator, prefix: str, format: str | None = None
+) -> dict[str, np.ndarray]:
     arrays: dict[str, np.ndarray] = {}
 
     if format != "native":
@@ -436,7 +523,7 @@ def restore_arrays(
     tree_prefix = f"{prefix}tree/"
     for k, v in arrays.items():
         if k.startswith(tree_prefix):
-            tree_arrays[k[len(tree_prefix):]] = v
+            tree_arrays[k[len(tree_prefix) :]] = v
 
     meta = fitted_state[f"{prefix}tree"]
     model_str = _rebuild_model_string(tree_arrays, meta)

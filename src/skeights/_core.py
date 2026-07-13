@@ -84,7 +84,9 @@ def _arrays_from_estimator(
         arrays: dict[str, np.ndarray] = {}
         for step_name, step in estimator.named_steps.items():
             step_prefix = f"{prefix}{step_name}/" if prefix else f"{step_name}/"
-            arrays.update(_arrays_from_estimator(step, prefix=step_prefix, format=format))
+            arrays.update(
+                _arrays_from_estimator(step, prefix=step_prefix, format=format)
+            )
         return arrays
 
     for handler in _get_handlers():

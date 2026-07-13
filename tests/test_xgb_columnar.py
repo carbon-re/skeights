@@ -20,7 +20,6 @@ from skeights._utils import json_default  # noqa: E402
 
 from .conftest import round_trip  # noqa: E402
 
-
 # ---------------------------------------------------------------------------
 # Fixtures
 # ---------------------------------------------------------------------------
@@ -103,7 +102,10 @@ class TestRegressorRoundTrip:
         restored = skeights.deserialize(state, arrays)
 
         np.testing.assert_allclose(
-            model.predict(X), restored.predict(X), atol=0, rtol=0,
+            model.predict(X),
+            restored.predict(X),
+            atol=0,
+            rtol=0,
         )
 
     @pytest.mark.parametrize("config", REGRESSOR_CONFIGS)
@@ -115,9 +117,7 @@ class TestRegressorRoundTrip:
         state, arrays = skeights.serialize(model)
         restored = skeights.deserialize(state, arrays)
 
-        orig_raw = model.get_booster().predict(
-            xgb.DMatrix(X), output_margin=True
-        )
+        orig_raw = model.get_booster().predict(xgb.DMatrix(X), output_margin=True)
         restored_raw = restored.get_booster().predict(
             xgb.DMatrix(X), output_margin=True
         )
@@ -138,7 +138,10 @@ class TestRegressorRoundTrip:
         loaded = skeights.load(tmp_path / "m.safetensors", tmp_path / "m.json")
 
         np.testing.assert_allclose(
-            model.predict(X), loaded.predict(X), atol=0, rtol=0,
+            model.predict(X),
+            loaded.predict(X),
+            atol=0,
+            rtol=0,
         )
 
 
@@ -166,7 +169,10 @@ class TestBinaryClassifierRoundTrip:
         restored = skeights.deserialize(state, arrays)
 
         np.testing.assert_allclose(
-            model.predict_proba(X), restored.predict_proba(X), atol=0, rtol=0,
+            model.predict_proba(X),
+            restored.predict_proba(X),
+            atol=0,
+            rtol=0,
         )
 
     @pytest.mark.parametrize("config", CLASSIFIER_CONFIGS)
@@ -178,9 +184,7 @@ class TestBinaryClassifierRoundTrip:
         state, arrays = skeights.serialize(model)
         restored = skeights.deserialize(state, arrays)
 
-        orig_raw = model.get_booster().predict(
-            xgb.DMatrix(X), output_margin=True
-        )
+        orig_raw = model.get_booster().predict(xgb.DMatrix(X), output_margin=True)
         restored_raw = restored.get_booster().predict(
             xgb.DMatrix(X), output_margin=True
         )
@@ -211,7 +215,10 @@ class TestMulticlassClassifierRoundTrip:
         restored = skeights.deserialize(state, arrays)
 
         np.testing.assert_allclose(
-            model.predict_proba(X), restored.predict_proba(X), atol=0, rtol=0,
+            model.predict_proba(X),
+            restored.predict_proba(X),
+            atol=0,
+            rtol=0,
         )
 
 
@@ -252,10 +259,17 @@ class TestColumnarStructure:
         model.fit(X, y)
         arrays = _arrays_from_estimator(model)
         expected_keys = {
-            "tree/offsets", "tree/split_indices", "tree/split_conditions",
-            "tree/left_children", "tree/right_children", "tree/parents",
-            "tree/default_left", "tree/base_weights", "tree/sum_hessian",
-            "tree/loss_changes", "tree/split_type",
+            "tree/offsets",
+            "tree/split_indices",
+            "tree/split_conditions",
+            "tree/left_children",
+            "tree/right_children",
+            "tree/parents",
+            "tree/default_left",
+            "tree/base_weights",
+            "tree/sum_hessian",
+            "tree/loss_changes",
+            "tree/split_type",
             "feature_importances_",
         }
         assert expected_keys.issubset(set(arrays.keys()))
@@ -287,7 +301,10 @@ class TestEdgeCases:
         model.fit(X, y)
         restored = round_trip(model)
         np.testing.assert_allclose(
-            model.predict(X), restored.predict(X), atol=0, rtol=0,
+            model.predict(X),
+            restored.predict(X),
+            atol=0,
+            rtol=0,
         )
 
     def test_missing_values(self, regression_Xy):
@@ -301,7 +318,10 @@ class TestEdgeCases:
         model.fit(X_missing, y)
         restored = round_trip(model)
         np.testing.assert_allclose(
-            model.predict(X_missing), restored.predict(X_missing), atol=0, rtol=0,
+            model.predict(X_missing),
+            restored.predict(X_missing),
+            atol=0,
+            rtol=0,
         )
 
     def test_high_cardinality_features(self):
@@ -312,7 +332,10 @@ class TestEdgeCases:
         model.fit(X, y)
         restored = round_trip(model)
         np.testing.assert_allclose(
-            model.predict(X), restored.predict(X), atol=0, rtol=0,
+            model.predict(X),
+            restored.predict(X),
+            atol=0,
+            rtol=0,
         )
 
     def test_pipeline_with_xgb(self, regression_Xy):
@@ -320,12 +343,20 @@ class TestEdgeCases:
         from sklearn.preprocessing import StandardScaler
 
         X, y = regression_Xy
-        pipe = Pipeline([
-            ("scaler", StandardScaler()),
-            ("model", xgb.XGBRegressor(n_estimators=5, max_depth=3, random_state=0)),
-        ])
+        pipe = Pipeline(
+            [
+                ("scaler", StandardScaler()),
+                (
+                    "model",
+                    xgb.XGBRegressor(n_estimators=5, max_depth=3, random_state=0),
+                ),
+            ]
+        )
         pipe.fit(X, y)
         restored = round_trip(pipe)
         np.testing.assert_allclose(
-            pipe.predict(X), restored.predict(X), atol=0, rtol=0,
+            pipe.predict(X),
+            restored.predict(X),
+            atol=0,
+            rtol=0,
         )
