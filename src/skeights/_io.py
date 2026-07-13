@@ -58,22 +58,26 @@ def _warn_version_mismatch(saved_versions: dict[str, str]) -> None:
 
 def serialize(
     estimator: BaseEstimator,
+    format: str | None = None,
 ) -> tuple[dict[str, Any], dict[str, np.ndarray]]:
     """Serialize a fitted estimator to a state dict and arrays dict.
 
     Args:
         estimator: A fitted sklearn estimator.
+        format: Serialization format for tree models. ``None`` (default)
+            uses columnar tensors; ``"native"`` uses each library's
+            native text/JSON format.
 
     Returns:
         A tuple of (state_dict, arrays_dict).
     """
-    arrays = _arrays_from_estimator(estimator)
+    arrays = _arrays_from_estimator(estimator, format=format)
     params = get_model_params(estimator)
     if "type" not in params:
         params["type"] = get_sklearn_public_path(type(estimator))
     state: dict[str, Any] = {
         "model_params": params,
-        "fitted_state": _collect_fitted_state(estimator),
+        "fitted_state": _collect_fitted_state(estimator, format=format),
     }
     return state, arrays
 
@@ -128,6 +132,7 @@ def save(
     estimator: BaseEstimator,
     arrays_path: str | Path,
     state_path: str | Path,
+    format: str | None = None,
 ) -> None:
     """Serialize a fitted estimator to safetensors + JSON files.
 
@@ -135,8 +140,11 @@ def save(
         estimator: A fitted sklearn estimator.
         arrays_path: Destination path for the safetensors weight file.
         state_path: Destination path for the JSON state file.
+        format: Serialization format for tree models. ``None`` (default)
+            uses columnar tensors; ``"native"`` uses each library's
+            native text/JSON format.
     """
-    state, arrays = serialize(estimator)
+    state, arrays = serialize(estimator, format=format)
     state["skeights_version"] = _version_info(estimator)
     safetensors.numpy.save_file(arrays, str(arrays_path))
     Path(state_path).write_text(json.dumps(state, indent=2, default=json_default))

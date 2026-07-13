@@ -1,0 +1,20 @@
+name: Nightly
+
+on:
+  schedule:
+    - cron: "0 6 * * *"  # 6am UTC
+
+jobs:
+  test-latest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/ -v

@@ -73,9 +73,9 @@ predictions = loaded.predict(X_test)
 
 | Function | Description |
 |---|---|
-| `save(estimator, arrays_path, state_path)` | Serialize to safetensors + JSON files |
+| `save(estimator, arrays_path, state_path, format=None)` | Serialize to safetensors + JSON files |
 | `load(arrays_path, state_path)` | Load from files, return fitted estimator |
-| `serialize(estimator)` | Return `(state_dict, arrays_dict)` in memory |
+| `serialize(estimator, format=None)` | Return `(state_dict, arrays_dict)` in memory |
 | `deserialize(state, arrays)` | Reconstruct estimator from dicts |
 | `get_model_params(estimator)` | Recursively extract hyperparameters (handles Pipelines, kernels, TTR) |
 | `set_model_params(estimator, params)` | Recursively set hyperparameters |
@@ -84,7 +84,7 @@ predictions = loaded.predict(X_test)
 
 | Status | Estimators |
 |---|---|
-| **Supported** | Ridge, Lasso, LinearRegression, LogisticRegression, and other linear models. MLPRegressor/Classifier. DecisionTree, RandomForest, GradientBoosting, HistGradientBoosting (regressors and classifiers). LGBMRegressor/Classifier, XGBRegressor/Classifier. GaussianProcessRegressor/Classifier (including composite kernels). TransformedTargetRegressor. StandardScaler, MinMaxScaler, RobustScaler. Pipelines composed of any of the above. |
+| **Supported** | Ridge, Lasso, LinearRegression, LogisticRegression, and other linear models. MLPRegressor/Classifier. DecisionTree, RandomForest, GradientBoosting, HistGradientBoosting (regressors and classifiers). LGBMRegressor/Classifier (columnar tensors or native text), XGBRegressor/Classifier (columnar tensors or native JSON). GaussianProcessRegressor/Classifier (including composite kernels). TransformedTargetRegressor. StandardScaler, MinMaxScaler, RobustScaler. Pipelines composed of any of the above. |
 | **Not yet implemented** | CatBoost, other ensemble meta-estimators (VotingClassifier, StackingRegressor, etc.), PCA and other decomposition transforms. Open an issue or PR if you need any of these. |
 | **Not planned** | Cross-version sklearn migration (use [sklearn-migrator](https://github.com/ibis-ssl/sklearn-migrator)). General-purpose secure persistence with broad estimator coverage (use [skops](https://github.com/skops-dev/skops)). |
 
@@ -118,6 +118,23 @@ models as JSON. It has not been updated in several years.
 > **Note**: the feature descriptions of skops and sklearn-migrator
 > above reflect their state as of mid-2025. Check their current
 > docs for the latest.
+
+## Tree model formats
+
+LightGBM and XGBoost models are serialized as columnar tensors by
+default: split features, thresholds, child pointers, and leaf values
+are stored as typed numpy arrays in safetensors, with only small
+scalar config (objective, feature names, etc.) in JSON.
+
+This gives 30-85% smaller files compared to the native format and
+makes the JSON human-readable. To use the native format instead:
+
+```python
+skeights.save(model, "model.safetensors", "model.json", format="native")
+```
+
+Artifacts saved with older versions of skeights (before columnar
+support) are loaded transparently -- no migration needed.
 
 ## Compatibility
 
