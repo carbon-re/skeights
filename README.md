@@ -74,16 +74,16 @@ pip install skeights
 
 ### Compatibility
 
-skeights requires scikit-learn >= 1.5 and tests against 1.5,
-1.6, and latest in CI. LightGBM and XGBoost are tested against
-older versions (4.4 and 2.1 respectively) as well as latest.
+Requires scikit-learn >= 1.5, LightGBM >= 4.4 (optional),
+XGBoost >= 2.1 (optional). CI tests against scikit-learn 1.5,
+1.6, and latest; LightGBM 4.4 and latest; XGBoost 2.1 and
+latest.
 
 Saved models are forward-compatible on a best-effort basis: we
 test loading fixtures saved on older library versions with newer
-ones, but don't guarantee cross-version compatibility.
-
-When loading a model saved with a different sklearn, LightGBM,
-or XGBoost version, skeights will emit a warning.
+ones, but don't guarantee cross-version compatibility. skeights
+will emit a warning when loading a model saved with a different
+library version.
 
 ## Usage
 
