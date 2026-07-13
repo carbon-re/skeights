@@ -45,7 +45,10 @@ def collect_state(estimator: BaseEstimator, prefix: str) -> dict[str, Any]:
 
     if _is_classifier(estimator):
         state[f"{prefix}n_classes"] = estimator._n_classes  # type: ignore[attr-defined]
-        state[f"{prefix}class_map"] = estimator._class_map  # type: ignore[attr-defined]
+        state[f"{prefix}class_map"] = {
+            int(k): int(v)
+            for k, v in estimator._class_map.items()  # type: ignore[attr-defined]
+        }
 
     return state
 
