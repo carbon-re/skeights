@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
 name = "skeights"
-version = "0.2.1"
+dynamic = ["version"]
 description = "Serialize fitted scikit-learn models to safetensors + JSON"
 readme = "README.md"
 license = "MIT"
@@ -46,6 +46,12 @@ dev = [
 [project.urls]
 Repository = "https://github.com/carbon-re/skeights"
 Changelog = "https://github.com/carbon-re/skeights/releases"
+
+[tool.hatch.version]
+source = "vcs"
+
+[tool.hatch.build.hooks.vcs]
+version-file = "src/skeights/_version.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/skeights"]
