@@ -79,5 +79,6 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -e ".[dev]"
+          pip install "scikit-learn==1.5.*"
           pip install "${{ matrix.tree-lib.name }}==${{ matrix.tree-lib.version }}.*"
       - run: pytest tests/ -v
