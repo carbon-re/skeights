@@ -15,13 +15,23 @@ X_cls, y_cls = make_classification(n_samples=500, n_features=20, random_state=42
 results = []
 
 
-def measure(name, model, X, y):
+def measure(name, model, X, y, has_format=True):
     model.fit(X, y)
     with tempfile.TemporaryDirectory() as d:
-        skeights.save(model, f"{d}/m.safetensors", f"{d}/m.json")
-        json_size = os.path.getsize(f"{d}/m.json")
-        st_size = os.path.getsize(f"{d}/m.safetensors")
-        results.append((name, json_size, st_size))
+        # Columnar (default)
+        skeights.save(model, f"{d}/c.safetensors", f"{d}/c.json")
+        c_js = os.path.getsize(f"{d}/c.json")
+        c_st = os.path.getsize(f"{d}/c.safetensors")
+
+        if has_format:
+            # Native
+            skeights.save(model, f"{d}/n.safetensors", f"{d}/n.json", format="native")
+            n_js = os.path.getsize(f"{d}/n.json")
+            n_st = os.path.getsize(f"{d}/n.safetensors")
+        else:
+            n_js, n_st = c_js, c_st
+
+        results.append((name, n_js, n_st, c_js, c_st))
 
 
 # XGBoost
@@ -42,11 +52,18 @@ try:
 except ImportError:
     print("lightgbm not installed, skipping")
 
-# sklearn baseline (already uses safetensors properly)
-measure("sklearn GBRegressor(100 trees)", GradientBoostingRegressor(n_estimators=100, max_depth=6, random_state=0), X_reg, y_reg)
+# sklearn baseline (no format option)
+measure("sklearn GBReg(100 trees)", GradientBoostingRegressor(n_estimators=100, max_depth=6, random_state=0), X_reg, y_reg, has_format=False)
 
-print(f"{'Model':<35} {'JSON':>10} {'Safetensors':>12} {'Total':>10}")
-print("-" * 70)
-for name, js, st in results:
-    pct = js / (js + st) * 100
-    print(f"{name:<35} {js:>9,} {st:>11,} {js + st:>9,}  (JSON={pct:.0f}%)")
+print(f"{'Model':<30} {'Native Total':>14} {'Columnar Total':>16} {'Reduction':>10}")
+print(f"{'':30} {'(JSON + ST)':>14} {'(JSON + ST)':>16}")
+print("-" * 73)
+for name, n_js, n_st, c_js, c_st in results:
+    n_total = n_js + n_st
+    c_total = c_js + c_st
+    if n_total != c_total:
+        pct = f"{(1 - c_total / n_total) * 100:.0f}%"
+        print(f"{name:<30} {n_total:>13,} {c_total:>15,} {pct:>10}")
+        print(f"{'':30}  (J:{n_js:>8,})  (J:{c_js:>8,})")
+    else:
+        print(f"{name:<30} {n_total:>13,} {c_total:>15,} {'n/a':>10}")

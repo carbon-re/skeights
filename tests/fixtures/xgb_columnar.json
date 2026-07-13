@@ -1,0 +1,132 @@
+{
+  "model_params": {
+    "objective": "reg:squarederror",
+    "base_score": null,
+    "booster": null,
+    "callbacks": null,
+    "colsample_bylevel": null,
+    "colsample_bynode": null,
+    "colsample_bytree": null,
+    "device": null,
+    "early_stopping_rounds": null,
+    "enable_categorical": true,
+    "eval_metric": null,
+    "feature_types": null,
+    "feature_weights": null,
+    "gamma": null,
+    "grow_policy": null,
+    "importance_type": null,
+    "interaction_constraints": null,
+    "learning_rate": null,
+    "max_bin": null,
+    "max_cat_threshold": null,
+    "max_cat_to_onehot": null,
+    "max_delta_step": null,
+    "max_depth": 3,
+    "max_leaves": null,
+    "min_child_weight": null,
+    "missing": NaN,
+    "monotone_constraints": null,
+    "multi_strategy": null,
+    "n_estimators": 5,
+    "n_jobs": null,
+    "num_parallel_tree": null,
+    "random_state": null,
+    "reg_alpha": null,
+    "reg_lambda": null,
+    "sampling_method": null,
+    "scale_pos_weight": null,
+    "subsample": null,
+    "tree_method": null,
+    "validate_parameters": null,
+    "verbosity": null,
+    "type": "xgboost.sklearn.XGBRegressor"
+  },
+  "fitted_state": {
+    "__format__": {
+      "library": "xgboost",
+      "format": "columnar-tensors",
+      "schema_version": 1
+    },
+    "tree": {
+      "learner_model_param": {
+        "base_score": "[-9.841837E-2]",
+        "boost_from_average": "1",
+        "num_class": "0",
+        "num_feature": "3",
+        "num_target": "1"
+      },
+      "objective": {
+        "name": "reg:squarederror",
+        "reg_loss_param": {
+          "scale_pos_weight": "1"
+        }
+      },
+      "attributes": {},
+      "feature_names": [],
+      "feature_types": [],
+      "gbtree_model_param": {
+        "num_parallel_tree": "1",
+        "num_trees": "5"
+      },
+      "iteration_indptr": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5
+      ],
+      "tree_info": [
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "tree_params": [
+        {
+          "num_deleted": "0",
+          "num_feature": "3",
+          "num_nodes": "15",
+          "size_leaf_vector": "1"
+        },
+        {
+          "num_deleted": "0",
+          "num_feature": "3",
+          "num_nodes": "15",
+          "size_leaf_vector": "1"
+        },
+        {
+          "num_deleted": "0",
+          "num_feature": "3",
+          "num_nodes": "15",
+          "size_leaf_vector": "1"
+        },
+        {
+          "num_deleted": "0",
+          "num_feature": "3",
+          "num_nodes": "13",
+          "size_leaf_vector": "1"
+        },
+        {
+          "num_deleted": "0",
+          "num_feature": "3",
+          "num_nodes": "15",
+          "size_leaf_vector": "1"
+        }
+      ],
+      "gbm_name": "gbtree",
+      "version": [
+        3,
+        3,
+        0
+      ]
+    }
+  },
+  "skeights_version": {
+    "skeights": "0.2.1",
+    "sklearn": "1.9.0",
+    "xgboost": "3.3.0"
+  }
+}
