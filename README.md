@@ -36,11 +36,54 @@ Loading safetensors does not execute arbitrary code.
 > but the loader only allows imports from `sklearn`, `lightgbm`, and
 > `xgboost`. Arbitrary module imports from crafted JSON files are blocked.
 
+### When to use something else
+
+There are other tools for serializing sklearn models. Here is when
+to reach for them instead.
+
+**[skops](https://github.com/skops-dev/skops)** is the actively
+maintained, scikit-learn-adjacent option for secure persistence,
+referenced in sklearn's own docs. It covers pipelines, XGBoost,
+LightGBM, has compression, model inspection, and Hugging Face Hub
+integration. Reach for skops if you want the broadest, most
+battle-tested secure persistence and do not specifically need the
+safetensors format or the readable-config / compact-weights split.
+Use skeights if you want human-readable model config (diffable
+JSON hyperparameters), compact safetensors-native storage
+(memory-mappable, cross-language), or both.
+
+**[sklearn-migrator](https://github.com/anvaldes/sklearn-migrator)**
+is purpose-built for loading models across different sklearn
+versions, with a peer-reviewed paper behind it. Reach for it if
+cross-version migration is your problem. skeights does not guarantee
+cross-version support. Note that sklearn-migrator does not cover
+pipelines, XGBoost, or LightGBM, which skeights does.
+
+**[sklearn-json](https://github.com/mlrequest/sklearn-json)** stores
+models as JSON. It has not been updated in several years.
+
+> **Note**: the feature descriptions of skops and sklearn-migrator
+> above reflect their state as of mid-2026. Check their current
+> docs for the latest.
+
 ## Install
 
 ```bash
 pip install skeights
 ```
+
+### Compatibility
+
+skeights requires scikit-learn >= 1.5 and tests against 1.5,
+1.6, and latest in CI. LightGBM and XGBoost are tested against
+older versions (4.4 and 2.1 respectively) as well as latest.
+
+Saved models are forward-compatible on a best-effort basis: we
+test loading fixtures saved on older library versions with newer
+ones, but don't guarantee cross-version compatibility.
+
+When loading a model saved with a different sklearn, LightGBM,
+or XGBoost version, skeights will emit a warning.
 
 ## Usage
 
@@ -84,37 +127,7 @@ predictions = loaded.predict(X_test)
 | **Not yet implemented** | `CatBoost`, other ensemble meta-estimators (`VotingClassifier`, `StackingRegressor`, etc.), `PCA` and other decomposition transforms. Open an issue or PR if you need any of these. |
 | **Not planned** | Cross-version sklearn migration (use [sklearn-migrator](https://github.com/anvaldes/sklearn-migrator)). General-purpose secure persistence with broad estimator coverage (use [skops](https://github.com/skops-dev/skops)). |
 
-## When to use something else
-
-There are other tools for serializing sklearn models. Here is when
-to reach for them instead.
-
-**[skops](https://github.com/skops-dev/skops)** is the actively
-maintained, scikit-learn-adjacent option for secure persistence,
-referenced in sklearn's own docs. It covers pipelines, XGBoost,
-LightGBM, has compression, model inspection, and Hugging Face Hub
-integration. Reach for skops if you want the broadest, most
-battle-tested secure persistence and do not specifically need the
-safetensors format or the readable-config / compact-weights split.
-Use skeights if you want human-readable model config (diffable
-JSON hyperparameters), compact safetensors-native storage
-(memory-mappable, cross-language), or both.
-
-**[sklearn-migrator](https://github.com/anvaldes/sklearn-migrator)**
-is purpose-built for loading models across different sklearn
-versions, with a peer-reviewed paper behind it. Reach for it if
-cross-version migration is your problem. skeights does not guarantee
-cross-version support. Note that sklearn-migrator does not cover
-pipelines, XGBoost, or LightGBM, which skeights does.
-
-**[sklearn-json](https://github.com/mlrequest/sklearn-json)** stores
-models as JSON. It has not been updated in several years.
-
-> **Note**: the feature descriptions of skops and sklearn-migrator
-> above reflect their state as of mid-2026. Check their current
-> docs for the latest.
-
-## Tree model formats
+### Tree model formats
 
 LightGBM and XGBoost models are serialized as columnar tensors by
 default: split features, thresholds, child pointers, and leaf values
@@ -130,19 +143,6 @@ skeights.save(model, "model.safetensors", "model.json", format="native")
 
 Artifacts saved with older versions of skeights (before columnar
 support) are loaded transparently, no migration needed.
-
-## Compatibility
-
-skeights requires scikit-learn >= 1.5 and tests against 1.5,
-1.6, and latest in CI. LightGBM and XGBoost are tested against
-older versions (4.4 and 2.1 respectively) as well as latest.
-
-Saved models are forward-compatible on a best-effort basis: we
-test loading fixtures saved on older library versions with newer
-ones, but don't guarantee cross-version compatibility.
-
-When loading a model saved with a different sklearn, LightGBM,
-or XGBoost version, skeights will emit a warning.
 
 ## License
 
