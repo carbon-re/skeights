@@ -34,14 +34,16 @@ def test_xgb_classifier_round_trip(binary_data):
     )
 
 
-def test_xgb_state_contains_model_json(regression_data):
+def test_xgb_state_contains_tree_metadata(regression_data):
     X, y = regression_data
     model = xgb.XGBRegressor(n_estimators=5, max_depth=3)
     model.fit(X, y["y"])
     state = _collect_fitted_state(model)
-    assert "model_json" in state
-    assert "learner" in state["model_json"]
-    assert "version" in state["model_json"]
+    assert "__format__" in state
+    assert state["__format__"]["format"] == "columnar-tensors"
+    assert "tree" in state
+    assert "objective" in state["tree"]
+    assert "version" in state["tree"]
 
 
 def test_xgb_state_is_json_serializable(regression_data):
