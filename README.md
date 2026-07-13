@@ -82,7 +82,7 @@ predictions = loaded.predict(X_test)
 |---|---|
 | **Supported** | `Ridge`, `Lasso`, `LinearRegression`, `LogisticRegression`, and other linear models. `MLPRegressor`/`MLPClassifier`. `DecisionTreeRegressor`/`Classifier`, `RandomForestRegressor`/`Classifier`, `GradientBoostingRegressor`/`Classifier`, `HistGradientBoostingRegressor`/`Classifier`. `LGBMRegressor`/`Classifier` (columnar tensors or native text), `XGBRegressor`/`Classifier` (columnar tensors or native JSON). `GaussianProcessRegressor`/`Classifier` (including composite kernels). `TransformedTargetRegressor`. `StandardScaler`, `MinMaxScaler`, `RobustScaler`. `Pipeline` composed of any of the above. |
 | **Not yet implemented** | `CatBoost`, other ensemble meta-estimators (`VotingClassifier`, `StackingRegressor`, etc.), `PCA` and other decomposition transforms. Open an issue or PR if you need any of these. |
-| **Not planned** | Cross-version sklearn migration (use [sklearn-migrator](https://github.com/ibis-ssl/sklearn-migrator)). General-purpose secure persistence with broad estimator coverage (use [skops](https://github.com/skops-dev/skops)). |
+| **Not planned** | Cross-version sklearn migration (use [sklearn-migrator](https://github.com/anvaldes/sklearn-migrator)). General-purpose secure persistence with broad estimator coverage (use [skops](https://github.com/skops-dev/skops)). |
 
 ## When to use something else
 
@@ -100,7 +100,7 @@ Use skeights if you want human-readable model config (diffable
 JSON hyperparameters), compact safetensors-native storage
 (memory-mappable, cross-language), or both.
 
-**[sklearn-migrator](https://github.com/ibis-ssl/sklearn-migrator)**
+**[sklearn-migrator](https://github.com/anvaldes/sklearn-migrator)**
 is purpose-built for loading models across different sklearn
 versions, with a peer-reviewed paper behind it. Reach for it if
 cross-version migration is your problem. skeights does not guarantee
@@ -134,14 +134,15 @@ support) are loaded transparently, no migration needed.
 ## Compatibility
 
 skeights requires scikit-learn >= 1.5 and tests against 1.5,
-1.6, and latest in CI.
+1.6, and latest in CI. LightGBM and XGBoost are tested against
+older versions (4.4 and 2.1 respectively) as well as latest.
 
 Saved models are forward-compatible on a best-effort basis: we
-test loading sklearn 1.5 fixtures on newer versions, but don't
-guarantee cross-version compatibility.
+test loading fixtures saved on older library versions with newer
+ones, but don't guarantee cross-version compatibility.
 
-When loading a model saved with a different sklearn version,
-skeights will emit a warning.
+When loading a model saved with a different sklearn, LightGBM,
+or XGBoost version, skeights will emit a warning.
 
 ## License
 
