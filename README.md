@@ -100,23 +100,22 @@ LightGBM, has compression, model inspection, and Hugging Face Hub
 integration. Reach for skops if you want the broadest, most
 battle-tested secure persistence and do not specifically need the
 safetensors format or the readable-config / compact-weights split.
-skeights' differentiator over skops is narrow: safetensors-native
-storage (standard, memory-mappable, cross-language) with a
-structure/weights separation that makes config inspectable and
-tree ensembles compact.
+Use skeights if you want human-readable model config (diffable
+JSON hyperparameters), compact safetensors-native storage
+(memory-mappable, cross-language), or both.
 
 **[sklearn-migrator](https://github.com/ibis-ssl/sklearn-migrator)**
 is purpose-built for loading models across different sklearn
 versions, with a peer-reviewed paper behind it. Reach for it if
 cross-version migration is your problem. skeights does not guarantee
 cross-version support. Note that sklearn-migrator does not cover
-pipelines, which skeights does.
+pipelines, XGBoost, or LightGBM, which skeights does.
 
 **[sklearn-json](https://github.com/mlrequest/sklearn-json)** stores
 models as JSON. It has not been updated in several years.
 
 > **Note**: the feature descriptions of skops and sklearn-migrator
-> above reflect their state as of mid-2025. Check their current
+> above reflect their state as of mid-2026. Check their current
 > docs for the latest.
 
 ## Tree model formats
