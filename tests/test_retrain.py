@@ -81,18 +81,22 @@ def test_retrain_pipeline(train_data, new_data, tmp_path):
     X, y = train_data
     X2, y2 = new_data
 
-    pipe = Pipeline([
-        ("scaler", StandardScaler()),
-        ("model", Ridge(alpha=1.0)),
-    ])
+    pipe = Pipeline(
+        [
+            ("scaler", StandardScaler()),
+            ("model", Ridge(alpha=1.0)),
+        ]
+    )
     pipe.fit(X, y)
     loaded = _save_load(pipe, tmp_path)
     loaded.fit(X2, y2)
 
-    fresh = Pipeline([
-        ("scaler", StandardScaler()),
-        ("model", Ridge(alpha=1.0)),
-    ])
+    fresh = Pipeline(
+        [
+            ("scaler", StandardScaler()),
+            ("model", Ridge(alpha=1.0)),
+        ]
+    )
     fresh.fit(X2, y2)
 
     np.testing.assert_allclose(loaded.predict(X2), fresh.predict(X2))
