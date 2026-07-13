@@ -10,27 +10,75 @@ No pickle. No joblib. Just weights and config.
 
 ## Why?
 
-Pickle is the default way to save sklearn models, but it's:
-- **Insecure**: arbitrary code execution on load
-- **Fragile**: breaks across sklearn versions, Python versions, and platforms
-- **Opaque**: you can't inspect what's inside
+Pickle is the default way to save sklearn models, but it's insecure
+(arbitrary code execution on load), fragile (breaks across versions),
+and opaque (you can't inspect what's inside without loading it).
 
-[skops](https://github.com/skops-dev/skops) solves the security
-problem by replacing pickle with a safe binary format, but the
-output is still a single opaque blob; you can't easily inspect
-the hyperparameters or diff two versions of a model.
+skeights splits a model into two layers:
 
-skeights separates structure from weights:
-- **`.json`**: hyperparameters and scalar fitted state,
-  human-readable and diffable
-- **`.safetensors`**: numeric arrays (weights, fitted params)
-  in a safe, fast, widely-supported format
+- **`.json`**: hyperparameters, fitted scalars, and structural config.
+  Human-readable, greppable, diffable. You can inspect how a model
+  is configured without deserializing it or running any code.
+- **`.safetensors`**: the numeric bulk (coefficients, tree split
+  arrays, leaf values) as dense typed arrays in the
+  [safetensors](https://github.com/huggingface/safetensors) format.
+  Typed binary arrays instead of numbers encoded as text, which
+  matters most for large tree ensembles.
+
+Why safetensors specifically: it is memory-mappable,
+language-agnostic, and widely adopted across the ML ecosystem. The
+weight payload is readable outside Python and outside skeights.
+Loading safetensors does not execute arbitrary code.
+
+> [!NOTE]
+> skeights does not use pickle or joblib. The JSON state file names
+> the Python classes to instantiate (e.g. `sklearn.linear_model.Ridge`),
+> but the loader only allows imports from `sklearn`, `lightgbm`, and
+> `xgboost`. Arbitrary module imports from crafted JSON files are blocked.
+
+### When to use something else
+
+There are other tools for serializing sklearn models. Here is when
+to reach for them instead.
+
+**[skops](https://github.com/skops-dev/skops)** is the actively
+maintained, scikit-learn-adjacent option for secure persistence,
+referenced in sklearn's own docs. It covers pipelines, XGBoost,
+LightGBM, has compression, model inspection, and Hugging Face Hub
+integration. Reach for skops if you want the broadest, most
+battle-tested secure persistence and do not need to inspect
+model config without loading it. Use skeights if you want
+human-readable, diffable model configuration.
+
+**[sklearn-migrator](https://github.com/anvaldes/sklearn-migrator)**
+is purpose-built for loading models across different sklearn
+versions, with a peer-reviewed paper behind it. Reach for it if
+cross-version migration is your problem. skeights does not guarantee
+cross-version support. Note that sklearn-migrator does not yet cover
+pipelines, XGBoost, or LightGBM, which skeights does.
+
+> **Note**: the feature descriptions of skops and sklearn-migrator
+> above reflect their state as of mid-2026. Check their current
+> docs for the latest.
 
 ## Install
 
 ```bash
 pip install skeights
 ```
+
+### Compatibility
+
+Requires scikit-learn >= 1.5, LightGBM >= 4.4 (optional),
+XGBoost >= 2.1 (optional). CI tests against scikit-learn 1.5,
+1.6, and latest; LightGBM 4.4 and latest; XGBoost 2.1 and
+latest.
+
+Saved models are forward-compatible on a best-effort basis: we
+test loading fixtures saved on older library versions with newer
+ones, but don't guarantee cross-version compatibility. skeights
+will emit a warning when loading a model saved with a different
+library version.
 
 ## Usage
 
@@ -55,33 +103,26 @@ loaded = skeights.load("model.safetensors", "model.json")
 predictions = loaded.predict(X_test)
 ```
 
-## API
+### API
 
 | Function | Description |
 |---|---|
-| `save(estimator, arrays_path, state_path, format=None)` | Serialize to safetensors + JSON files |
-| `load(arrays_path, state_path)` | Load from files, return fitted estimator |
-| `serialize(estimator, format=None)` | Return `(state_dict, arrays_dict)` in memory |
-| `deserialize(state, arrays)` | Reconstruct estimator from dicts |
-| `get_model_params(estimator)` | Recursively extract hyperparameters (handles Pipelines, kernels, TTR) |
-| `set_model_params(estimator, params)` | Recursively set hyperparameters |
+| `save(estimator: BaseEstimator, arrays_path: str, state_path: str, format: str \| None = None) -> None` | Serialize to safetensors + JSON files |
+| `load(arrays_path: str, state_path: str) -> BaseEstimator` | Load from files, return fitted estimator |
+| `serialize(estimator: BaseEstimator, format: str \| None = None) -> tuple[dict, dict]` | Return `(state_dict, arrays_dict)` in memory |
+| `deserialize(state: dict, arrays: dict) -> BaseEstimator` | Reconstruct estimator from dicts |
+| `get_model_params(estimator: BaseEstimator) -> dict` | Recursively extract hyperparameters |
+| `set_model_params(estimator: BaseEstimator, params: dict) -> None` | Recursively set hyperparameters |
 
 ## Supported estimators
 
-- **Linear models**: Ridge, Lasso, LinearRegression, LogisticRegression, etc.
-- **MLPRegressor / Classifier**: multi-layer perceptron
-- **DecisionTreeRegressor / Classifier**: full tree serialization
-- **RandomForestRegressor / Classifier**: full tree serialization
-- **GradientBoostingRegressor / Classifier**: including init estimator
-- **HistGradientBoostingRegressor / Classifier**: including bin mapper state
-- **LGBMRegressor / Classifier**: columnar tensors (default) or native text
-- **XGBRegressor / Classifier**: columnar tensors (default) or native JSON
-- **GaussianProcessRegressor / Classifier**: including composite kernels
-- **TransformedTargetRegressor**: target scaling wrappers
-- **Scalers**: StandardScaler, MinMaxScaler, RobustScaler
-- **Pipelines**: any Pipeline composed of supported estimators
+| Status | Estimators |
+|---|---|
+| **Supported** | `Ridge`, `Lasso`, `LinearRegression`, `LogisticRegression`, and other linear models. `MLPRegressor`/`MLPClassifier`. `DecisionTreeRegressor`/`Classifier`, `RandomForestRegressor`/`Classifier`, `GradientBoostingRegressor`/`Classifier`, `HistGradientBoostingRegressor`/`Classifier`. `LGBMRegressor`/`Classifier` (columnar tensors or native text), `XGBRegressor`/`Classifier` (columnar tensors or native JSON). `GaussianProcessRegressor`/`Classifier` (including composite kernels). `TransformedTargetRegressor`. `StandardScaler`, `MinMaxScaler`, `RobustScaler`. `Pipeline` composed of any of the above. |
+| **Not yet implemented** | `CatBoost`, other ensemble meta-estimators (`VotingClassifier`, `StackingRegressor`, etc.), `PCA` and other decomposition transforms. Open an issue or PR if you need any of these. |
+| **Not planned** | Cross-version sklearn migration (use [sklearn-migrator](https://github.com/anvaldes/sklearn-migrator)). General-purpose secure persistence with broad estimator coverage (use [skops](https://github.com/skops-dev/skops)). |
 
-## Tree model formats
+### Tree model formats
 
 LightGBM and XGBoost models are serialized as columnar tensors by
 default: split features, thresholds, child pointers, and leaf values
@@ -96,19 +137,7 @@ skeights.save(model, "model.safetensors", "model.json", format="native")
 ```
 
 Artifacts saved with older versions of skeights (before columnar
-support) are loaded transparently -- no migration needed.
-
-## Compatibility
-
-skeights requires scikit-learn >= 1.5 and tests against 1.5,
-1.6, and latest in CI.
-
-Saved models are forward-compatible on a best-effort basis: we
-test loading sklearn 1.5 fixtures on newer versions, but don't
-guarantee cross-version compatibility.
-
-When loading a model saved with a different sklearn version,
-skeights will emit a warning.
+support) are loaded transparently, no migration needed.
 
 ## License
 

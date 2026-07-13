@@ -73,6 +73,30 @@ def _fix_json_param_types(
     }
 
 
+# Allowed module prefixes for importlib.import_module during deserialization.
+# Only classes from these packages can be instantiated from JSON state.
+ALLOWED_MODULE_PREFIXES = (
+    "sklearn.",
+    "lightgbm.",
+    "xgboost.",
+)
+
+
+def safe_import(type_path: str) -> type:
+    """Import a class by its full dotted path, with an allowlist check.
+
+    Raises ``ValueError`` if the module is not in the allowed prefixes.
+    """
+    module_path, _, class_name = type_path.rpartition(".")
+    if not any(type_path.startswith(prefix) for prefix in ALLOWED_MODULE_PREFIXES):
+        raise ValueError(
+            f"Refusing to import '{type_path}': module is not in the "
+            f"allowed list {ALLOWED_MODULE_PREFIXES}. If this is a "
+            f"legitimate estimator, open an issue."
+        )
+    return getattr(importlib.import_module(module_path), class_name)
+
+
 # Array attrs used by the generic linear/scaler fallback and by GP base_estimator_.
 SKLEARN_ARRAY_ATTRS = (
     "coef_",

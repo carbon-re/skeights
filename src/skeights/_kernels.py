@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import importlib
 from typing import Any
 
 import numpy as np
@@ -35,10 +34,11 @@ def _deserialize_kernel(data: dict[str, Any]) -> Kernel:
     """Reconstruct a kernel tree from a serialised dict."""
     from sklearn.gaussian_process.kernels import KernelOperator
 
+    from skeights._utils import safe_import
+
     data = dict(data)
     type_path: str = data.pop("type")
-    module_path, _, class_name = type_path.rpartition(".")
-    cls = getattr(importlib.import_module(module_path), class_name)
+    cls = safe_import(type_path)
 
     if issubclass(cls, KernelOperator):
         k1 = _deserialize_kernel(data["k1"])
