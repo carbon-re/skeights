@@ -36,18 +36,29 @@ jobs:
       fail-fast: false
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
-        sklearn-version: ["1.5", "1.6", "latest"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: ${{ matrix.python-version }}
+      - run: pip install -e ".[dev]"
+      - run: pytest tests/ -v
+
+  test-sklearn:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        sklearn-version: ["1.5", "1.6"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
       - name: Install dependencies
         run: |
           pip install -e ".[dev]"
-          if [ "${{ matrix.sklearn-version }}" != "latest" ]; then
-            pip install "scikit-learn==${{ matrix.sklearn-version }}.*"
-          fi
+          pip install "scikit-learn==${{ matrix.sklearn-version }}.*"
       - run: pytest tests/ -v
 
   test-tree-libs:
