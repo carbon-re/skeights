@@ -14,7 +14,7 @@ def handles(estimator: BaseEstimator) -> bool:
     return isinstance(estimator, TransformedTargetRegressor)
 
 
-def collect_state(estimator: BaseEstimator, prefix: str) -> dict[str, Any]:
+def collect_state(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, Any]:
     """Collect non-array fitted state from a TTR estimator."""
     from skeights._core import _collect_fitted_state
 
@@ -27,6 +27,7 @@ def collect_state(estimator: BaseEstimator, prefix: str) -> dict[str, Any]:
             _collect_fitted_state(
                 cast(BaseEstimator, estimator.regressor_),
                 prefix=f"{prefix}regressor_/",
+                format=format,
             )
         )
     if hasattr(estimator, "transformer_"):
@@ -34,6 +35,7 @@ def collect_state(estimator: BaseEstimator, prefix: str) -> dict[str, Any]:
             _collect_fitted_state(
                 cast(BaseEstimator, estimator.transformer_),
                 prefix=f"{prefix}transformer_/",
+                format=format,
             )
         )
     return state
@@ -65,7 +67,7 @@ def restore_state(
         )
 
 
-def extract_arrays(estimator: BaseEstimator, prefix: str) -> dict[str, np.ndarray]:
+def extract_arrays(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, np.ndarray]:
     """Extract arrays from a TTR estimator."""
     from skeights._core import _arrays_from_estimator
 
@@ -76,6 +78,7 @@ def extract_arrays(estimator: BaseEstimator, prefix: str) -> dict[str, np.ndarra
             _arrays_from_estimator(
                 cast(BaseEstimator, estimator.regressor_),
                 prefix=f"{prefix}regressor_/",
+                format=format,
             )
         )
     if hasattr(estimator, "transformer_"):
@@ -83,6 +86,7 @@ def extract_arrays(estimator: BaseEstimator, prefix: str) -> dict[str, np.ndarra
             _arrays_from_estimator(
                 cast(BaseEstimator, estimator.transformer_),
                 prefix=f"{prefix}transformer_/",
+                format=format,
             )
         )
     return arrays

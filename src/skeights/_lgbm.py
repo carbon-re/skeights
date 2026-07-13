@@ -35,9 +35,24 @@ def handles(estimator: BaseEstimator) -> bool:
     return _is_lgbm(estimator)
 
 
-def collect_state(estimator: BaseEstimator, prefix: str) -> dict[str, Any]:
+def collect_state(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, Any]:
     state: dict[str, Any] = {}
-    state[f"{prefix}model_str"] = estimator._Booster.model_to_string()  # type: ignore[attr-defined]
+    if format == "native":
+        state[f"{prefix}__format__"] = {
+            "library": "lightgbm",
+            "format": "native-text",
+            "schema_version": 1,
+        }
+        state[f"{prefix}model_str"] = estimator._Booster.model_to_string()  # type: ignore[attr-defined]
+    else:
+        state[f"{prefix}__format__"] = {
+            "library": "lightgbm",
+            "format": "columnar-tensors",
+            "schema_version": 1,
+        }
+        # TODO: Phase 2 -- columnar tensor extraction
+        # For now, fall back to native-text until the columnar path is built
+        state[f"{prefix}model_str"] = estimator._Booster.model_to_string()  # type: ignore[attr-defined]
     state[f"{prefix}n_features"] = estimator._n_features  # type: ignore[attr-defined]
     state[f"{prefix}n_features_in"] = estimator._n_features_in  # type: ignore[attr-defined]
     state[f"{prefix}objective"] = estimator._objective  # type: ignore[attr-defined]
@@ -57,6 +72,11 @@ def restore_state(
 ) -> None:
     import lightgbm as lgb
 
+    fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-text")
+    if fmt == "columnar-tensors":
+        # TODO: Phase 2 -- columnar tensor restoration
+        # For now, fall back to native-text
+        pass
     model_str = fitted_state[f"{prefix}model_str"]
     estimator._Booster = lgb.Booster(model_str=model_str)  # type: ignore[attr-defined]
     estimator._n_features = fitted_state[f"{prefix}n_features"]  # type: ignore[attr-defined]
@@ -80,7 +100,7 @@ def restore_state(
         estimator._le = le  # type: ignore[attr-defined]
 
 
-def extract_arrays(estimator: BaseEstimator, prefix: str) -> dict[str, np.ndarray]:
+def extract_arrays(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, np.ndarray]:
     # Model string goes in state; arrays only has feature importances
     arrays: dict[str, np.ndarray] = {}
     if hasattr(estimator, "feature_importances_"):

@@ -36,8 +36,22 @@ def handles(estimator: BaseEstimator) -> bool:
     return _is_xgb(estimator)
 
 
-def collect_state(estimator: BaseEstimator, prefix: str) -> dict[str, Any]:
+def collect_state(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, Any]:
     state: dict[str, Any] = {}
+    if format == "native":
+        state[f"{prefix}__format__"] = {
+            "library": "xgboost",
+            "format": "native-json",
+            "schema_version": 1,
+        }
+    else:
+        state[f"{prefix}__format__"] = {
+            "library": "xgboost",
+            "format": "columnar-tensors",
+            "schema_version": 1,
+        }
+        # TODO: Phase 4 -- columnar tensor extraction for XGBoost
+    # For now, always store the native JSON (columnar path not yet built)
     booster = estimator.get_booster()  # type: ignore[attr-defined]
     model_json = json.loads(booster.save_raw(raw_format="json").decode())
     state[f"{prefix}model_json"] = model_json
@@ -55,6 +69,11 @@ def restore_state(
 ) -> None:
     import xgboost as xgb
 
+    fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-json")
+    if fmt == "columnar-tensors":
+        # TODO: Phase 4 -- columnar tensor restoration for XGBoost
+        # For now, fall back to native-json
+        pass
     model_json = fitted_state[f"{prefix}model_json"]
     model_bytes = bytearray(json.dumps(model_json).encode())
     booster = xgb.Booster()
@@ -65,7 +84,7 @@ def restore_state(
         estimator.n_classes_ = fitted_state[f"{prefix}n_classes"]  # type: ignore[attr-defined]
 
 
-def extract_arrays(estimator: BaseEstimator, prefix: str) -> dict[str, np.ndarray]:
+def extract_arrays(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, np.ndarray]:
     # Model lives in JSON state; arrays only has feature importances
     arrays: dict[str, np.ndarray] = {}
     if hasattr(estimator, "feature_importances_"):

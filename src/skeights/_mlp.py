@@ -27,7 +27,7 @@ def handles(estimator: BaseEstimator) -> bool:
     return isinstance(estimator, (MLPRegressor, MLPClassifier))
 
 
-def collect_state(estimator: BaseEstimator, prefix: str) -> dict[str, Any]:
+def collect_state(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, Any]:
     """Collect non-array fitted state from an MLP estimator."""
     state: dict[str, Any] = {}
     for attr in MLP_FITTED_STATE_ATTRS:
@@ -48,7 +48,7 @@ def restore_state(
             setattr(estimator, attr, fitted_state[key])
 
 
-def extract_arrays(estimator: BaseEstimator, prefix: str) -> dict[str, np.ndarray]:
+def extract_arrays(estimator: BaseEstimator, prefix: str, format: str | None = None) -> dict[str, np.ndarray]:
     """Extract weight arrays from an MLP estimator."""
     arrays: dict[str, np.ndarray] = {}
     if hasattr(estimator, "coefs_"):

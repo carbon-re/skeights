@@ -31,7 +31,11 @@ def _get_handlers():
 # ---------------------------------------------------------------------------
 
 
-def _collect_fitted_state(estimator: BaseEstimator, prefix: str = "") -> dict[str, Any]:
+def _collect_fitted_state(
+    estimator: BaseEstimator,
+    prefix: str = "",
+    format: str | None = None,
+) -> dict[str, Any]:
     """Collect non-array fitted attributes from estimator instances.
 
     Walks Pipeline steps recursively. Dispatches to estimator-family
@@ -42,12 +46,12 @@ def _collect_fitted_state(estimator: BaseEstimator, prefix: str = "") -> dict[st
     if isinstance(estimator, Pipeline):
         for step_name, step in estimator.named_steps.items():
             step_prefix = f"{prefix}{step_name}/" if prefix else f"{step_name}/"
-            state.update(_collect_fitted_state(step, prefix=step_prefix))
+            state.update(_collect_fitted_state(step, prefix=step_prefix, format=format))
         return state
 
     for handler in _get_handlers():
         if handler.handles(estimator):
-            return handler.collect_state(estimator, prefix)
+            return handler.collect_state(estimator, prefix, format=format)
 
     return state
 
@@ -71,19 +75,21 @@ def _restore_fitted_state(
 
 
 def _arrays_from_estimator(
-    estimator: BaseEstimator, prefix: str = ""
+    estimator: BaseEstimator,
+    prefix: str = "",
+    format: str | None = None,
 ) -> dict[str, np.ndarray]:
     """Recursively extract numpy arrays from a fitted estimator."""
     if isinstance(estimator, Pipeline):
         arrays: dict[str, np.ndarray] = {}
         for step_name, step in estimator.named_steps.items():
             step_prefix = f"{prefix}{step_name}/" if prefix else f"{step_name}/"
-            arrays.update(_arrays_from_estimator(step, prefix=step_prefix))
+            arrays.update(_arrays_from_estimator(step, prefix=step_prefix, format=format))
         return arrays
 
     for handler in _get_handlers():
         if handler.handles(estimator):
-            return handler.extract_arrays(estimator, prefix)
+            return handler.extract_arrays(estimator, prefix, format=format)
 
     # Generic fallback for linear models, scalers, etc.
     supported = any(hasattr(estimator, attr) for attr in _SKLEARN_ARRAY_ATTRS)
