@@ -14,6 +14,7 @@ from sklearn.ensemble import (
 )
 from sklearn.tree import DecisionTreeClassifier, DecisionTreeRegressor
 
+from skeights._handler import EstimatorHandler
 from skeights._utils import get_sklearn_public_path
 
 # Tree-based ensemble types.
@@ -284,93 +285,88 @@ def _restore_tree_ensemble(
 
 
 # ---------------------------------------------------------------------------
-# Public dispatch API (called from _core.py)
+# Handler class
 # ---------------------------------------------------------------------------
 
 
-def collect_state(
-    estimator: BaseEstimator, prefix: str, format: str | None = None
-) -> dict[str, Any]:
-    """Collect fitted state for tree-based estimators."""
-    state: dict[str, Any] = {}
-    if isinstance(estimator, (_RandomForest, _GradientBoosting)):
-        return _state_from_tree_ensemble(estimator, prefix)  # type: ignore[arg-type]
-    if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
-        state.update(_state_from_tree(estimator.tree_, f"{prefix}_tree/"))
-        for attr in ("n_features_in_", "n_outputs_", "n_classes_"):
-            if hasattr(estimator, attr):
-                val = getattr(estimator, attr)
-                state[f"{prefix}{attr}"] = (
-                    int(val) if isinstance(val, (int, np.integer)) else val
-                )
-        if hasattr(estimator, "classes_"):
-            pass  # stored as array
+class TreeHandler(EstimatorHandler):
+
+    def handles(self, estimator: BaseEstimator) -> bool:
+        return isinstance(
+            estimator,
+            (
+                DecisionTreeRegressor,
+                DecisionTreeClassifier,
+                RandomForestRegressor,
+                RandomForestClassifier,
+                GradientBoostingRegressor,
+                GradientBoostingClassifier,
+            ),
+        )
+
+    def collect_state(
+        self, estimator: BaseEstimator, prefix: str, format: str | None = None
+    ) -> dict[str, Any]:
+        state: dict[str, Any] = {}
+        if isinstance(estimator, (_RandomForest, _GradientBoosting)):
+            return _state_from_tree_ensemble(estimator, prefix)  # type: ignore[arg-type]
+        if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
+            state.update(_state_from_tree(estimator.tree_, f"{prefix}_tree/"))
+            for attr in ("n_features_in_", "n_outputs_", "n_classes_"):
+                if hasattr(estimator, attr):
+                    val = getattr(estimator, attr)
+                    state[f"{prefix}{attr}"] = (
+                        int(val) if isinstance(val, (int, np.integer)) else val
+                    )
+            if hasattr(estimator, "classes_"):
+                pass  # stored as array
+            return state
         return state
-    return state
 
-
-def restore_state(
-    estimator: BaseEstimator,
-    fitted_state: dict[str, Any],
-    prefix: str,
-) -> None:
-    """Restore fitted state for tree-based estimators (no-op: handled in arrays)."""
-    # Tree ensembles and standalone trees are handled in the arrays path.
-    return
-
-
-def extract_arrays(
-    estimator: BaseEstimator, prefix: str, format: str | None = None
-) -> dict[str, np.ndarray]:
-    """Extract arrays from tree-based estimators."""
-    if isinstance(estimator, (_RandomForest, _GradientBoosting)):
-        return _arrays_from_tree_ensemble(estimator, prefix)  # type: ignore[arg-type]
-    if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
-        arrays: dict[str, np.ndarray] = {}
-        arrays.update(_arrays_from_tree(estimator.tree_, f"{prefix}_tree/"))
-        if hasattr(estimator, "classes_"):
-            arrays[f"{prefix}classes_"] = np.asarray(estimator.classes_)
-        return arrays
-    return {}
-
-
-def restore_arrays(
-    estimator: BaseEstimator,
-    arrays: dict[str, np.ndarray],
-    prefix: str,
-    fitted_state: dict[str, Any] | None = None,
-) -> None:
-    """Restore arrays for tree-based estimators."""
-    if isinstance(estimator, (_RandomForest, _GradientBoosting)):
-        assert fitted_state is not None, (
-            "Tree ensemble restoration requires fitted_state"
-        )
-        _restore_tree_ensemble(estimator, arrays, fitted_state, prefix)  # type: ignore[arg-type]
+    def restore_state(
+        self,
+        estimator: BaseEstimator,
+        fitted_state: dict[str, Any],
+        prefix: str,
+    ) -> None:
+        # Tree ensembles and standalone trees are handled in the arrays path.
         return
-    if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
-        assert fitted_state is not None
-        estimator.tree_ = _make_tree(  # type: ignore[attr-defined]
-            arrays, fitted_state, f"{prefix}_tree/"
-        )
-        for attr in ("n_features_in_", "n_outputs_", "n_classes_"):
-            key = f"{prefix}{attr}"
-            if key in fitted_state:
-                setattr(estimator, attr, fitted_state[key])
-        classes_key = f"{prefix}classes_"
-        if classes_key in arrays:
-            estimator.classes_ = arrays[classes_key]  # type: ignore[attr-defined]
 
+    def extract_arrays(
+        self, estimator: BaseEstimator, prefix: str, format: str | None = None
+    ) -> dict[str, np.ndarray]:
+        if isinstance(estimator, (_RandomForest, _GradientBoosting)):
+            return _arrays_from_tree_ensemble(estimator, prefix)  # type: ignore[arg-type]
+        if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
+            arrays: dict[str, np.ndarray] = {}
+            arrays.update(_arrays_from_tree(estimator.tree_, f"{prefix}_tree/"))
+            if hasattr(estimator, "classes_"):
+                arrays[f"{prefix}classes_"] = np.asarray(estimator.classes_)
+            return arrays
+        return {}
 
-def handles(estimator: BaseEstimator) -> bool:
-    """Return True if this module handles the given estimator type."""
-    return isinstance(
-        estimator,
-        (
-            DecisionTreeRegressor,
-            DecisionTreeClassifier,
-            RandomForestRegressor,
-            RandomForestClassifier,
-            GradientBoostingRegressor,
-            GradientBoostingClassifier,
-        ),
-    )
+    def restore_arrays(
+        self,
+        estimator: BaseEstimator,
+        arrays: dict[str, np.ndarray],
+        prefix: str,
+        fitted_state: dict[str, Any] | None = None,
+    ) -> None:
+        if isinstance(estimator, (_RandomForest, _GradientBoosting)):
+            assert fitted_state is not None, (
+                "Tree ensemble restoration requires fitted_state"
+            )
+            _restore_tree_ensemble(estimator, arrays, fitted_state, prefix)  # type: ignore[arg-type]
+            return
+        if isinstance(estimator, (DecisionTreeRegressor, DecisionTreeClassifier)):
+            assert fitted_state is not None
+            estimator.tree_ = _make_tree(  # type: ignore[attr-defined]
+                arrays, fitted_state, f"{prefix}_tree/"
+            )
+            for attr in ("n_features_in_", "n_outputs_", "n_classes_"):
+                key = f"{prefix}{attr}"
+                if key in fitted_state:
+                    setattr(estimator, attr, fitted_state[key])
+            classes_key = f"{prefix}classes_"
+            if classes_key in arrays:
+                estimator.classes_ = arrays[classes_key]  # type: ignore[attr-defined]

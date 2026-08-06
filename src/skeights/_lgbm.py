@@ -15,6 +15,8 @@ from typing import Any
 import numpy as np
 from sklearn.base import BaseEstimator
 
+from skeights._handler import EstimatorHandler
+
 # ---------------------------------------------------------------------------
 # Type checks
 # ---------------------------------------------------------------------------
@@ -36,10 +38,6 @@ def _is_classifier(estimator: BaseEstimator) -> bool:
         return isinstance(estimator, LGBMClassifier)
     except ImportError:
         return False
-
-
-def handles(estimator: BaseEstimator) -> bool:
-    return _is_lgbm(estimator)
 
 
 # ---------------------------------------------------------------------------
@@ -319,122 +317,130 @@ def _rebuild_model_string(
 
 
 # ---------------------------------------------------------------------------
-# Public dispatch API
+# Handler class
 # ---------------------------------------------------------------------------
 
 
-def collect_state(
-    estimator: BaseEstimator, prefix: str, format: str | None = None
-) -> dict[str, Any]:
-    state: dict[str, Any] = {}
+class LGBMHandler(EstimatorHandler):
 
-    if format == "native":
-        state[f"{prefix}__format__"] = {
-            "library": "lightgbm",
-            "format": "native-text",
-            "schema_version": 1,
-        }
-        state[f"{prefix}model_str"] = estimator._Booster.model_to_string()  # type: ignore[attr-defined]
-    else:
-        state[f"{prefix}__format__"] = {
-            "library": "lightgbm",
-            "format": "columnar-tensors",
-            "schema_version": 1,
-        }
-        _, meta = _extract_columnar(estimator._Booster)  # type: ignore[attr-defined]
-        state[f"{prefix}tree"] = meta
+    def handles(self, estimator: BaseEstimator) -> bool:
+        return _is_lgbm(estimator)
 
-    state[f"{prefix}n_features"] = estimator._n_features  # type: ignore[attr-defined]
-    state[f"{prefix}n_features_in"] = estimator._n_features_in  # type: ignore[attr-defined]
-    state[f"{prefix}objective"] = estimator._objective  # type: ignore[attr-defined]
-    state[f"{prefix}best_iteration"] = estimator._best_iteration  # type: ignore[attr-defined]
+    def collect_state(
+        self, estimator: BaseEstimator, prefix: str, format: str | None = None
+    ) -> dict[str, Any]:
+        state: dict[str, Any] = {}
 
-    if _is_classifier(estimator):
-        state[f"{prefix}n_classes"] = estimator._n_classes  # type: ignore[attr-defined]
-        state[f"{prefix}class_map"] = {
-            int(k): int(v)
-            for k, v in estimator._class_map.items()  # type: ignore[attr-defined]
-        }
+        if format == "native":
+            state[f"{prefix}__format__"] = {
+                "library": "lightgbm",
+                "format": "native-text",
+                "schema_version": 1,
+            }
+            state[f"{prefix}model_str"] = estimator._Booster.model_to_string()  # type: ignore[attr-defined]
+        else:
+            state[f"{prefix}__format__"] = {
+                "library": "lightgbm",
+                "format": "columnar-tensors",
+                "schema_version": 1,
+            }
+            _, meta = _extract_columnar(estimator._Booster)  # type: ignore[attr-defined]
+            state[f"{prefix}tree"] = meta
 
-    return state
+        state[f"{prefix}n_features"] = estimator._n_features  # type: ignore[attr-defined]
+        state[f"{prefix}n_features_in"] = estimator._n_features_in  # type: ignore[attr-defined]
+        state[f"{prefix}objective"] = estimator._objective  # type: ignore[attr-defined]
+        state[f"{prefix}best_iteration"] = estimator._best_iteration  # type: ignore[attr-defined]
 
+        if _is_classifier(estimator):
+            state[f"{prefix}n_classes"] = estimator._n_classes  # type: ignore[attr-defined]
+            state[f"{prefix}class_map"] = {
+                int(k): int(v)
+                for k, v in estimator._class_map.items()  # type: ignore[attr-defined]
+            }
 
-def restore_state(
-    estimator: BaseEstimator,
-    fitted_state: dict[str, Any],
-    prefix: str,
-) -> None:
-    import lightgbm as lgb
+        return state
 
-    fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-text")
+    def restore_state(
+        self,
+        estimator: BaseEstimator,
+        fitted_state: dict[str, Any],
+        prefix: str,
+    ) -> None:
+        import lightgbm as lgb
 
-    if fmt != "columnar-tensors":
-        model_str = fitted_state[f"{prefix}model_str"]
+        fmt = fitted_state.get(f"{prefix}__format__", {}).get(
+            "format", "native-text"
+        )
+
+        if fmt != "columnar-tensors":
+            model_str = fitted_state[f"{prefix}model_str"]
+            estimator._Booster = lgb.Booster(model_str=model_str)  # type: ignore[attr-defined]
+
+        estimator._n_features = fitted_state[f"{prefix}n_features"]  # type: ignore[attr-defined]
+        estimator._n_features_in = fitted_state[f"{prefix}n_features_in"]  # type: ignore[attr-defined]
+        estimator._objective = fitted_state[f"{prefix}objective"]  # type: ignore[attr-defined]
+        estimator._best_iteration = fitted_state[f"{prefix}best_iteration"]  # type: ignore[attr-defined]
+        estimator.fitted_ = True  # type: ignore[attr-defined]
+        estimator._best_score = {}  # type: ignore[attr-defined]
+        estimator._evals_result = {}  # type: ignore[attr-defined]
+        estimator._other_params = {}  # type: ignore[attr-defined]
+
+        if _is_classifier(estimator):
+            from sklearn.preprocessing import LabelEncoder
+
+            estimator._n_classes = fitted_state[f"{prefix}n_classes"]  # type: ignore[attr-defined]
+            estimator._class_map = fitted_state[f"{prefix}class_map"]  # type: ignore[attr-defined]
+            n_classes = estimator._n_classes  # type: ignore[attr-defined]
+            estimator._classes = np.arange(n_classes)  # type: ignore[attr-defined]
+            le = LabelEncoder()
+            le.classes_ = np.arange(n_classes)
+            estimator._le = le  # type: ignore[attr-defined]
+
+    def extract_arrays(
+        self, estimator: BaseEstimator, prefix: str, format: str | None = None
+    ) -> dict[str, np.ndarray]:
+        arrays: dict[str, np.ndarray] = {}
+
+        if format != "native":
+            columnar, _ = _extract_columnar(estimator._Booster)  # type: ignore[attr-defined]
+            for k, v in columnar.items():
+                arrays[f"{prefix}tree/{k}"] = v
+
+        if hasattr(estimator, "feature_importances_"):
+            arrays[f"{prefix}feature_importances_"] = np.asarray(
+                estimator.feature_importances_  # type: ignore[attr-defined]
+            )
+        if _is_classifier(estimator) and hasattr(estimator, "_classes"):
+            arrays[f"{prefix}classes_"] = np.asarray(
+                estimator._classes  # type: ignore[attr-defined]
+            )
+        return arrays
+
+    def restore_arrays(
+        self,
+        estimator: BaseEstimator,
+        arrays: dict[str, np.ndarray],
+        prefix: str,
+        fitted_state: dict[str, Any] | None = None,
+    ) -> None:
+        if fitted_state is None:
+            return
+
+        fmt = fitted_state.get(f"{prefix}__format__", {}).get(
+            "format", "native-text"
+        )
+        if fmt != "columnar-tensors":
+            return
+
+        import lightgbm as lgb
+
+        tree_arrays: dict[str, np.ndarray] = {}
+        tree_prefix = f"{prefix}tree/"
+        for k, v in arrays.items():
+            if k.startswith(tree_prefix):
+                tree_arrays[k[len(tree_prefix) :]] = v
+
+        meta = fitted_state[f"{prefix}tree"]
+        model_str = _rebuild_model_string(tree_arrays, meta)
         estimator._Booster = lgb.Booster(model_str=model_str)  # type: ignore[attr-defined]
-
-    estimator._n_features = fitted_state[f"{prefix}n_features"]  # type: ignore[attr-defined]
-    estimator._n_features_in = fitted_state[f"{prefix}n_features_in"]  # type: ignore[attr-defined]
-    estimator._objective = fitted_state[f"{prefix}objective"]  # type: ignore[attr-defined]
-    estimator._best_iteration = fitted_state[f"{prefix}best_iteration"]  # type: ignore[attr-defined]
-    estimator.fitted_ = True  # type: ignore[attr-defined]
-    estimator._best_score = {}  # type: ignore[attr-defined]
-    estimator._evals_result = {}  # type: ignore[attr-defined]
-    estimator._other_params = {}  # type: ignore[attr-defined]
-
-    if _is_classifier(estimator):
-        from sklearn.preprocessing import LabelEncoder
-
-        estimator._n_classes = fitted_state[f"{prefix}n_classes"]  # type: ignore[attr-defined]
-        estimator._class_map = fitted_state[f"{prefix}class_map"]  # type: ignore[attr-defined]
-        n_classes = estimator._n_classes  # type: ignore[attr-defined]
-        estimator._classes = np.arange(n_classes)  # type: ignore[attr-defined]
-        le = LabelEncoder()
-        le.classes_ = np.arange(n_classes)
-        estimator._le = le  # type: ignore[attr-defined]
-
-
-def extract_arrays(
-    estimator: BaseEstimator, prefix: str, format: str | None = None
-) -> dict[str, np.ndarray]:
-    arrays: dict[str, np.ndarray] = {}
-
-    if format != "native":
-        columnar, _ = _extract_columnar(estimator._Booster)  # type: ignore[attr-defined]
-        for k, v in columnar.items():
-            arrays[f"{prefix}tree/{k}"] = v
-
-    if hasattr(estimator, "feature_importances_"):
-        arrays[f"{prefix}feature_importances_"] = np.asarray(
-            estimator.feature_importances_  # type: ignore[attr-defined]
-        )
-    if _is_classifier(estimator) and hasattr(estimator, "_classes"):
-        arrays[f"{prefix}classes_"] = np.asarray(
-            estimator._classes  # type: ignore[attr-defined]
-        )
-    return arrays
-
-
-def restore_arrays(
-    estimator: BaseEstimator,
-    arrays: dict[str, np.ndarray],
-    prefix: str,
-    fitted_state: dict[str, Any] | None = None,
-) -> None:
-    if fitted_state is None:
-        return
-
-    fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-text")
-    if fmt != "columnar-tensors":
-        return
-
-    import lightgbm as lgb
-
-    tree_arrays: dict[str, np.ndarray] = {}
-    tree_prefix = f"{prefix}tree/"
-    for k, v in arrays.items():
-        if k.startswith(tree_prefix):
-            tree_arrays[k[len(tree_prefix) :]] = v
-
-    meta = fitted_state[f"{prefix}tree"]
-    model_str = _rebuild_model_string(tree_arrays, meta)
-    estimator._Booster = lgb.Booster(model_str=model_str)  # type: ignore[attr-defined]
