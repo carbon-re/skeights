@@ -105,10 +105,16 @@ def _get_handlers() -> list[EstimatorHandler]:
 
 ### Key concepts
 
+**You only handle your estimator**: pipelines, `TransformedTargetRegressor`,
+and other composite estimators are handled by the core dispatch layer.
+It walks the structure and calls each handler for the individual
+estimator it owns. Your handler just needs to serialize and restore
+a single estimator type. The composition is automatic.
+
 **Prefix**: every key in the state dict and arrays dict is prefixed
-with a path like `scaler/` or `model/`. This is how pipelines work:
-each step gets its own namespace. Always use `f"{prefix}{key}"`
-when building keys.
+with a path like `scaler/` or `model/`. The core layer manages this
+as it walks through composite estimators, giving each step its own
+namespace. Always use `f"{prefix}{key}"` when building keys.
 
 **State vs arrays**: anything that's a scalar, string, or small list
 goes in state (saved as JSON). Anything that's a numpy array goes in
