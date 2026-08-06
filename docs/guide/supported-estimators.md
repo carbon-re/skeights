@@ -1,7 +1,32 @@
 # Supported Estimators
 
-| Status | Estimators |
+## Supported
+
+| Category | Estimators |
 |---|---|
-| **Supported** | `Ridge`, `Lasso`, `LinearRegression`, `LogisticRegression`, and other linear models. `MLPRegressor`/`MLPClassifier`. `DecisionTreeRegressor`/`Classifier`, `RandomForestRegressor`/`Classifier`, `GradientBoostingRegressor`/`Classifier`, `HistGradientBoostingRegressor`/`Classifier`. `LGBMRegressor`/`Classifier` (columnar tensors or native text), `XGBRegressor`/`Classifier` (columnar tensors or native JSON). `GaussianProcessRegressor`/`Classifier` (including composite kernels). `TransformedTargetRegressor`. `StandardScaler`, `MinMaxScaler`, `RobustScaler`. `Pipeline` composed of any of the above. |
-| **Not yet implemented** | `CatBoost`, other ensemble meta-estimators (`VotingClassifier`, `StackingRegressor`, etc.), `PCA` and other decomposition transforms. Open an issue or PR if you need any of these. |
-| **Not planned** | Cross-version sklearn migration (use [sklearn-migrator](https://github.com/anvaldes/sklearn-migrator)). General-purpose secure persistence with broad estimator coverage (use [skops](https://github.com/skops-dev/skops)). |
+| Linear models | `Ridge`, `Lasso`, `LinearRegression`, `LogisticRegression`, and other linear models |
+| Neural networks | `MLPRegressor`, `MLPClassifier` |
+| Trees | `DecisionTreeRegressor`, `DecisionTreeClassifier` |
+| Tree ensembles (sklearn) | `RandomForestRegressor`, `RandomForestClassifier`, `GradientBoostingRegressor`, `GradientBoostingClassifier`, `HistGradientBoostingRegressor`, `HistGradientBoostingClassifier` |
+| LightGBM | `LGBMRegressor`, `LGBMClassifier` (columnar tensors or native text) |
+| XGBoost | `XGBRegressor`, `XGBClassifier` (columnar tensors or native JSON) |
+| Gaussian processes | `GaussianProcessRegressor`, `GaussianProcessClassifier` (including composite kernels) |
+| Preprocessing | `StandardScaler`, `MinMaxScaler`, `RobustScaler` |
+| Composition | `Pipeline`, `TransformedTargetRegressor` |
+
+## Not yet implemented
+
+| Category | Estimators |
+|---|---|
+| Boosting | `CatBoost` |
+| Meta-estimators | `VotingClassifier`, `StackingRegressor`, etc. |
+| Decomposition | `PCA` and other decomposition transforms |
+
+Open an issue or PR if you need any of these.
+
+## Not planned
+
+| Goal | Use instead |
+|---|---|
+| Cross-version sklearn migration | [sklearn-migrator](https://github.com/anvaldes/sklearn-migrator) |
+| Broad secure persistence | [skops](https://github.com/skops-dev/skops) |
