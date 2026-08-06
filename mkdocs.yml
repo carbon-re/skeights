@@ -25,8 +25,8 @@ theme:
     - content.code.copy
     - navigation.sections
     - navigation.expand
-  logo: ../logo.png
-  favicon: ../logo.png
+  logo: logo.png
+  favicon: logo.png
 
 nav:
   - Home: index.md
@@ -52,6 +52,8 @@ markdown_extensions:
 
 extra_css:
   - stylesheets/extra.css
+
+copyright: Made by <a href="https://gigaton.co">Gigaton</a>
 
 plugins:
   - search
