@@ -11,7 +11,7 @@ No pickle. No joblib. Just weights and config.
 skeights saves a fitted model as two files: a `.json` file containing
 hyperparameters and structural config, and a `.safetensors` file
 containing the numeric arrays (coefficients, tree splits, leaf values).
-The JSON is human-readable -- you can inspect, grep, and diff model
+The JSON is human-readable, so you can inspect, grep, and diff model
 config without loading it. The safetensors format is compact, typed,
 and memory-mappable. Neither file executes arbitrary code on load,
 so loading untrusted models is safe.
