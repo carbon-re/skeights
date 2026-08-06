@@ -29,14 +29,15 @@ theme:
   favicon: logo.png
 
 nav:
-  - Home: index.md
+  - Home:
+      - Overview: index.md
+      - Alternatives: alternatives.md
   - User Guide:
       - Getting Started: guide/getting-started.md
       - Supported Estimators: guide/supported-estimators.md
       - Tree Model Formats: guide/tree-formats.md
       - API Reference: guide/api.md
   - Contributing: contributing.md
-  - Alternatives: alternatives.md
 
 markdown_extensions:
   - admonition
