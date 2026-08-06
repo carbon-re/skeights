@@ -34,6 +34,7 @@ dependencies = [
 lightgbm = ["lightgbm"]
 xgboost = ["xgboost"]
 all = ["lightgbm", "xgboost"]
+docs = ["mkdocs-material"]
 dev = [
     "pandas",
     "pytest",
