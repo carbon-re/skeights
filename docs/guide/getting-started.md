@@ -72,6 +72,12 @@ every parameter in the entire pipeline.
 params = skeights.get_model_params(pipe)
 # {"scaler__with_mean": True, "scaler__with_std": True,
 #  "model__alpha": 0.1, "model__fit_intercept": True, ...}
+```
 
+`set_model_params` lets you update parameters using the same
+prefixed keys. This is useful for modifying a deserialized model
+without refitting it.
+
+```python
 skeights.set_model_params(pipe, {"model__alpha": 0.5})
 ```
