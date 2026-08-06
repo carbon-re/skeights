@@ -19,3 +19,7 @@
   color: #DE9D5B !important;
   font-weight: bold;
 }
+
+.md-header__topic .md-ellipsis {
+  font-family: "Roboto Mono", monospace;
+}
