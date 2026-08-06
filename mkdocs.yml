@@ -34,9 +34,8 @@ nav:
       - Getting Started: guide/getting-started.md
       - Supported Estimators: guide/supported-estimators.md
       - Tree Model Formats: guide/tree-formats.md
-  - Developer Guide:
-      - Contributing: developer/contributing.md
-      - API Reference: developer/api.md
+      - API Reference: guide/api.md
+  - Contributing: contributing.md
   - Alternatives: alternatives.md
 
 markdown_extensions:
