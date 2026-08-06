@@ -40,15 +40,22 @@ together.
 Subclass `skeights.EstimatorHandler` and implement five methods:
 
 ```python
+from typing import Any
+
+import numpy as np
+from sklearn.base import BaseEstimator
+
 from skeights._handler import EstimatorHandler
 
 class MyHandler(EstimatorHandler):
 
-    def handles(self, estimator):
+    def handles(self, estimator: BaseEstimator) -> bool:
         """Return True if this handler owns the given estimator type."""
         return isinstance(estimator, MyEstimatorClass)
 
-    def collect_state(self, estimator, prefix, format=None):
+    def collect_state(
+        self, estimator: BaseEstimator, prefix: str, format: str | None = None
+    ) -> dict[str, Any]:
         """Extract JSON-safe scalar state (hyperparameters, metadata).
 
         Returns a dict of scalar values that will be saved to JSON.
@@ -56,18 +63,28 @@ class MyHandler(EstimatorHandler):
         """
         ...
 
-    def restore_state(self, estimator, fitted_state, prefix):
+    def restore_state(
+        self, estimator: BaseEstimator, fitted_state: dict[str, Any], prefix: str
+    ) -> None:
         """Restore scalar state onto an estimator skeleton."""
         ...
 
-    def extract_arrays(self, estimator, prefix, format=None):
+    def extract_arrays(
+        self, estimator: BaseEstimator, prefix: str, format: str | None = None
+    ) -> dict[str, np.ndarray]:
         """Extract numpy arrays (weights, coefficients, etc).
 
         Returns a dict of numpy arrays that will be saved to safetensors.
         """
         ...
 
-    def restore_arrays(self, estimator, arrays, prefix, fitted_state=None):
+    def restore_arrays(
+        self,
+        estimator: BaseEstimator,
+        arrays: dict[str, np.ndarray],
+        prefix: str,
+        fitted_state: dict[str, Any] | None = None,
+    ) -> None:
         """Restore numpy arrays onto an estimator."""
         ...
 ```
