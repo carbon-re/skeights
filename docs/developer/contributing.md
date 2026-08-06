@@ -1,5 +1,33 @@
 # Contributing
 
+## Development setup
+
+Clone the repo and install in editable mode with dev dependencies:
+
+```bash
+git clone https://github.com/carbon-re/skeights.git
+cd skeights
+pip install -e ".[dev]"
+```
+
+Run the tests to check everything works:
+
+```bash
+pytest
+```
+
+## Running the docs locally
+
+Install the docs dependency and start the dev server:
+
+```bash
+pip install mkdocs-material
+mkdocs serve
+```
+
+This launches a local preview at `http://127.0.0.1:8000/skeights/`
+that auto-reloads when you edit any docs files.
+
 ## Adding support for a new estimator
 
 skeights uses a handler pattern to support different estimator types.
@@ -94,19 +122,3 @@ Add round-trip tests in `tests/` that:
 4. Check predictions match the original
 
 See `tests/test_mlp.py` for a straightforward example.
-
-## Development setup
-
-```bash
-git clone https://github.com/carbon-re/skeights.git
-cd skeights
-pip install -e ".[dev]"
-pytest
-```
-
-## Running the docs locally
-
-```bash
-pip install mkdocs-material
-mkdocs serve
-```
