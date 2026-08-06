@@ -44,23 +44,13 @@ pip install skeights
 
 ```python
 import skeights
-from sklearn.linear_model import Ridge
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import StandardScaler
 
-# Fit your model as usual
-pipe = Pipeline([
-    ("scaler", StandardScaler()),
-    ("model", Ridge(alpha=0.1)),
-])
-pipe.fit(X_train, y_train)
-
-# Save
-skeights.save(pipe, "model.safetensors", "model.json")
+# Save a fitted model
+skeights.save(model, "model.safetensors", "model.json")
 
 # Load and predict
 loaded = skeights.load("model.safetensors", "model.json")
 predictions = loaded.predict(X_test)
 ```
 
-See the [Getting Started](guide/getting-started.md) guide for more details.
+See the [Getting Started](guide/getting-started.md) guide for full examples including pipelines, in-memory serialization, and hyperparameter inspection.
