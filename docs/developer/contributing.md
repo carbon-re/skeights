@@ -61,8 +61,8 @@ def _get_handlers() -> list[EstimatorHandler]:
 ### Key concepts
 
 **Prefix**: every key in the state dict and arrays dict is prefixed
-with a path like `scaler/` or `model/`. This is how pipelines work
--- each step gets its own namespace. Always use `f"{prefix}{key}"`
+with a path like `scaler/` or `model/`. This is how pipelines work:
+each step gets its own namespace. Always use `f"{prefix}{key}"`
 when building keys.
 
 **State vs arrays**: anything that's a scalar, string, or small list
