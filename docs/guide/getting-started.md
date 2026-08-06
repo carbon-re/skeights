@@ -63,9 +63,15 @@ loaded = skeights.deserialize(state, arrays)
 
 ## Inspecting hyperparameters
 
+`get_model_params` recursively extracts hyperparameters from an
+estimator into a flat dict. For pipelines, it walks each step and
+prefixes keys with the step name, so you get a complete view of
+every parameter in the entire pipeline.
+
 ```python
 params = skeights.get_model_params(pipe)
-# Returns a nested dict of all hyperparameters
+# {"scaler__with_mean": True, "scaler__with_std": True,
+#  "model__alpha": 0.1, "model__fit_intercept": True, ...}
 
 skeights.set_model_params(pipe, {"model__alpha": 0.5})
 ```
