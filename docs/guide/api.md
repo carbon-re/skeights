@@ -38,6 +38,10 @@ skeights.load(
 ```
 
 Load a fitted estimator from files previously created by `save`.
+Reconstructs the full model hierarchy (pipelines, nested estimators)
+from the JSON config, restores all fitted arrays, and auto-detects
+the serialization format (e.g. columnar vs native for tree models).
+The returned estimator is ready for inference or further training.
 
 ## `serialize`
 
