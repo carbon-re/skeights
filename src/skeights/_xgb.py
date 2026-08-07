@@ -16,6 +16,8 @@ from typing import Any
 import numpy as np
 from sklearn.base import BaseEstimator
 
+from skeights._handler import EstimatorHandler
+
 # ---------------------------------------------------------------------------
 # Type checks
 # ---------------------------------------------------------------------------
@@ -37,10 +39,6 @@ def _is_classifier(estimator: BaseEstimator) -> bool:
         return isinstance(estimator, XGBClassifier)
     except ImportError:
         return False
-
-
-def handles(estimator: BaseEstimator) -> bool:
-    return _is_xgb(estimator)
 
 
 # ---------------------------------------------------------------------------
@@ -189,101 +187,104 @@ def _rebuild_model_json(
 
 
 # ---------------------------------------------------------------------------
-# Public dispatch API
+# Handler class
 # ---------------------------------------------------------------------------
 
 
-def collect_state(
-    estimator: BaseEstimator, prefix: str, format: str | None = None
-) -> dict[str, Any]:
-    state: dict[str, Any] = {}
-    booster = estimator.get_booster()  # type: ignore[attr-defined]
+class XGBHandler(EstimatorHandler):
+    def handles(self, estimator: BaseEstimator) -> bool:
+        return _is_xgb(estimator)
 
-    if format == "native":
-        state[f"{prefix}__format__"] = {
-            "library": "xgboost",
-            "format": "native-json",
-            "schema_version": 1,
-        }
-        model_json = json.loads(booster.save_raw(raw_format="json").decode())
-        state[f"{prefix}model_json"] = model_json
-    else:
-        state[f"{prefix}__format__"] = {
-            "library": "xgboost",
-            "format": "columnar-tensors",
-            "schema_version": 1,
-        }
-        _, meta = _extract_columnar(booster)
-        state[f"{prefix}tree"] = meta
+    def collect_state(
+        self, estimator: BaseEstimator, prefix: str, format: str | None = None
+    ) -> dict[str, Any]:
+        state: dict[str, Any] = {}
+        booster = estimator.get_booster()  # type: ignore[attr-defined]
 
-    if _is_classifier(estimator):
-        state[f"{prefix}n_classes"] = estimator.n_classes_  # type: ignore[attr-defined]
+        if format == "native":
+            state[f"{prefix}__format__"] = {
+                "library": "xgboost",
+                "format": "native-json",
+                "schema_version": 1,
+            }
+            model_json = json.loads(booster.save_raw(raw_format="json").decode())
+            state[f"{prefix}model_json"] = model_json
+        else:
+            state[f"{prefix}__format__"] = {
+                "library": "xgboost",
+                "format": "columnar-tensors",
+                "schema_version": 1,
+            }
+            _, meta = _extract_columnar(booster)
+            state[f"{prefix}tree"] = meta
 
-    return state
+        if _is_classifier(estimator):
+            state[f"{prefix}n_classes"] = estimator.n_classes_  # type: ignore[attr-defined]
 
+        return state
 
-def restore_state(
-    estimator: BaseEstimator,
-    fitted_state: dict[str, Any],
-    prefix: str,
-) -> None:
-    import xgboost as xgb
+    def restore_state(
+        self,
+        estimator: BaseEstimator,
+        fitted_state: dict[str, Any],
+        prefix: str,
+    ) -> None:
+        import xgboost as xgb
 
-    fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-json")
+        fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-json")
 
-    if fmt != "columnar-tensors":
-        model_json = fitted_state[f"{prefix}model_json"]
+        if fmt != "columnar-tensors":
+            model_json = fitted_state[f"{prefix}model_json"]
+            model_bytes = bytearray(json.dumps(model_json).encode())
+            booster = xgb.Booster()
+            booster.load_model(model_bytes)
+            estimator._Booster = booster  # type: ignore[attr-defined]
+
+        if _is_classifier(estimator):
+            estimator.n_classes_ = fitted_state[f"{prefix}n_classes"]  # type: ignore[attr-defined]
+
+    def extract_arrays(
+        self, estimator: BaseEstimator, prefix: str, format: str | None = None
+    ) -> dict[str, np.ndarray]:
+        arrays: dict[str, np.ndarray] = {}
+
+        if format != "native":
+            booster = estimator.get_booster()  # type: ignore[attr-defined]
+            columnar, _ = _extract_columnar(booster)
+            for k, v in columnar.items():
+                arrays[f"{prefix}tree/{k}"] = v
+
+        if hasattr(estimator, "feature_importances_"):
+            arrays[f"{prefix}feature_importances_"] = np.asarray(
+                estimator.feature_importances_  # type: ignore[attr-defined]
+            )
+        return arrays
+
+    def restore_arrays(
+        self,
+        estimator: BaseEstimator,
+        arrays: dict[str, np.ndarray],
+        prefix: str,
+        fitted_state: dict[str, Any] | None = None,
+    ) -> None:
+        if fitted_state is None:
+            return
+
+        fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-json")
+        if fmt != "columnar-tensors":
+            return
+
+        import xgboost as xgb
+
+        tree_arrays: dict[str, np.ndarray] = {}
+        tree_prefix = f"{prefix}tree/"
+        for k, v in arrays.items():
+            if k.startswith(tree_prefix):
+                tree_arrays[k[len(tree_prefix) :]] = v
+
+        meta = fitted_state[f"{prefix}tree"]
+        model_json = _rebuild_model_json(tree_arrays, meta)
         model_bytes = bytearray(json.dumps(model_json).encode())
         booster = xgb.Booster()
         booster.load_model(model_bytes)
         estimator._Booster = booster  # type: ignore[attr-defined]
-
-    if _is_classifier(estimator):
-        estimator.n_classes_ = fitted_state[f"{prefix}n_classes"]  # type: ignore[attr-defined]
-
-
-def extract_arrays(
-    estimator: BaseEstimator, prefix: str, format: str | None = None
-) -> dict[str, np.ndarray]:
-    arrays: dict[str, np.ndarray] = {}
-
-    if format != "native":
-        booster = estimator.get_booster()  # type: ignore[attr-defined]
-        columnar, _ = _extract_columnar(booster)
-        for k, v in columnar.items():
-            arrays[f"{prefix}tree/{k}"] = v
-
-    if hasattr(estimator, "feature_importances_"):
-        arrays[f"{prefix}feature_importances_"] = np.asarray(
-            estimator.feature_importances_  # type: ignore[attr-defined]
-        )
-    return arrays
-
-
-def restore_arrays(
-    estimator: BaseEstimator,
-    arrays: dict[str, np.ndarray],
-    prefix: str,
-    fitted_state: dict[str, Any] | None = None,
-) -> None:
-    if fitted_state is None:
-        return
-
-    fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-json")
-    if fmt != "columnar-tensors":
-        return
-
-    import xgboost as xgb
-
-    tree_arrays: dict[str, np.ndarray] = {}
-    tree_prefix = f"{prefix}tree/"
-    for k, v in arrays.items():
-        if k.startswith(tree_prefix):
-            tree_arrays[k[len(tree_prefix) :]] = v
-
-    meta = fitted_state[f"{prefix}tree"]
-    model_json = _rebuild_model_json(tree_arrays, meta)
-    model_bytes = bytearray(json.dumps(model_json).encode())
-    booster = xgb.Booster()
-    booster.load_model(model_bytes)
-    estimator._Booster = booster  # type: ignore[attr-defined]

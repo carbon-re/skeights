@@ -16,14 +16,29 @@ import numpy as np
 from sklearn.base import BaseEstimator
 from sklearn.pipeline import Pipeline
 
+from skeights._handler import EstimatorHandler
 from skeights._utils import SKLEARN_ARRAY_ATTRS as _SKLEARN_ARRAY_ATTRS
 
 
-def _get_handlers():
-    """Lazy-load estimator handler modules to avoid circular imports."""
-    from skeights import _gp, _hgb, _lgbm, _mlp, _trees, _ttr, _xgb
+def _get_handlers() -> list[EstimatorHandler]:
+    """Lazy-load estimator handlers to avoid circular imports."""
+    from skeights._gp import GPHandler
+    from skeights._hgb import HGBHandler
+    from skeights._lgbm import LGBMHandler
+    from skeights._mlp import MLPHandler
+    from skeights._trees import TreeHandler
+    from skeights._ttr import TTRHandler
+    from skeights._xgb import XGBHandler
 
-    return [_trees, _ttr, _mlp, _gp, _hgb, _lgbm, _xgb]
+    return [
+        TreeHandler(),
+        TTRHandler(),
+        MLPHandler(),
+        GPHandler(),
+        HGBHandler(),
+        LGBMHandler(),
+        XGBHandler(),
+    ]
 
 
 # ---------------------------------------------------------------------------
