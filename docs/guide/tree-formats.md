@@ -19,7 +19,8 @@ skeights.save(model, "model.safetensors", "model.json", format="native")
 - **LightGBM native**: stores the booster model string (LightGBM's text format) in JSON.
 - **XGBoost native**: stores the booster model as XGBoost's own JSON dict.
 
-## Backward compatibility
+## Loading
 
-Artifacts saved with older versions of skeights (before columnar
-support) are loaded transparently, no migration needed.
+The loader automatically detects whether a model was saved in
+columnar or native format and handles both transparently. You
+do not need to specify the format when loading.
