@@ -14,12 +14,12 @@
 ## `save`
 
 ```python
-skeights.save(
+def save(
     estimator: BaseEstimator,
     arrays_path: str,
     state_path: str,
     format: str | None = None,
-) -> None
+) -> None: ...
 ```
 
 Serialize a fitted estimator to a pair of files:
@@ -31,10 +31,10 @@ Serialize a fitted estimator to a pair of files:
 ## `load`
 
 ```python
-skeights.load(
+def load(
     arrays_path: str,
     state_path: str,
-) -> BaseEstimator
+) -> BaseEstimator: ...
 ```
 
 Load a fitted estimator from files previously created by `save`.
@@ -46,10 +46,10 @@ The returned estimator is ready for inference or further training.
 ## `serialize`
 
 ```python
-skeights.serialize(
+def serialize(
     estimator: BaseEstimator,
     format: str | None = None,
-) -> tuple[dict, dict]
+) -> tuple[dict, dict]: ...
 ```
 
 Like `save`, but returns `(state_dict, arrays_dict)` in memory instead of writing to files.
@@ -57,10 +57,10 @@ Like `save`, but returns `(state_dict, arrays_dict)` in memory instead of writin
 ## `deserialize`
 
 ```python
-skeights.deserialize(
+def deserialize(
     state: dict,
     arrays: dict,
-) -> BaseEstimator
+) -> BaseEstimator: ...
 ```
 
 Reconstruct a fitted estimator from the dicts returned by `serialize`.
@@ -68,9 +68,9 @@ Reconstruct a fitted estimator from the dicts returned by `serialize`.
 ## `get_model_params`
 
 ```python
-skeights.get_model_params(
+def get_model_params(
     estimator: BaseEstimator,
-) -> dict
+) -> dict: ...
 ```
 
 Recursively extract hyperparameters from an estimator. For composite
@@ -90,7 +90,7 @@ For example, a pipeline returns:
 ## `set_model_params`
 
 ```python
-skeights.set_model_params(
+def set_model_params(
     estimator: BaseEstimator,
     params: dict,
 ) -> None

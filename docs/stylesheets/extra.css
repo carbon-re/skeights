@@ -1,7 +1,7 @@
 [data-md-color-primary="custom"] {
-  --md-primary-fg-color: #4295F2;
-  --md-primary-fg-color--light: #6aabf5;
-  --md-primary-fg-color--dark: #2a7ad4;
+  --md-primary-fg-color: #1a2332;
+  --md-primary-fg-color--light: #2a3a52;
+  --md-primary-fg-color--dark: #111b24;
 }
 
 :root {
@@ -23,3 +23,46 @@
 .md-header__topic .md-ellipsis {
   font-family: "Roboto Mono", monospace;
 }
+
+/* Syntax highlighting - light mode */
+.md-typeset pre > code {
+  background-color: #f5f7fa;
+  color: #1a2332;
+}
+
+/* Syntax highlighting - dark mode */
+[data-md-color-scheme="slate"] .md-typeset pre > code {
+  background-color: #1a2332;
+  color: #e0e6ed;
+}
+
+.highlight .k,
+.highlight .kd { color: #4295F2; }          /* keywords: logo blue */
+.highlight .kn { color: #5bc46e; }           /* import/from: green */
+.highlight .kc { color: #4295F2; }           /* True/False/None: blue */
+.highlight .ow { color: #4295F2; }           /* is/not/and/or/in: blue */
+.highlight .s,
+.highlight .s1,
+.highlight .s2,
+.highlight .sa,
+.highlight .sd { color: #DE9D5B; }          /* strings/docstrings: boot orange */
+/* names: dark in light mode, light in dark mode */
+.highlight .n { color: #1a2332; }
+[data-md-color-scheme="slate"] .highlight .n { color: #e0e6ed; }
+.highlight .nb,
+.highlight .bp { color: #6aabf5; }          /* builtins: light blue */
+.highlight .nf,
+.highlight .fm { color: #5bc46e; }          /* functions: green */
+.highlight .nn { color: #6aabf5; }          /* module names: light blue */
+.highlight .c,
+.highlight .c1,
+.highlight .ch,
+.highlight .cm { color: #6b7d8e; }          /* comments: muted grey */
+/* operators/punctuation */
+.highlight .o,
+.highlight .p { color: #4a5568; }
+[data-md-color-scheme="slate"] .highlight .o,
+[data-md-color-scheme="slate"] .highlight .p { color: #8a95a3; }
+.highlight .mi,
+.highlight .mf { color: #DE9D5B; }          /* numbers: orange */
+.highlight .nc { color: #5bc46e; }           /* class names: green */
