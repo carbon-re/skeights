@@ -1,0 +1,59 @@
+site_name: skeights
+site_description: Serialize fitted scikit-learn models to safetensors + JSON
+site_url: https://carbon-re.github.io/skeights
+repo_url: https://github.com/carbon-re/skeights
+repo_name: carbon-re/skeights
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: custom
+      accent: custom
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - navigation.sections
+    - navigation.expand
+  logo: logo.png
+  favicon: favicon.png
+
+nav:
+  - Home:
+      - Overview: index.md
+      - Alternatives: alternatives.md
+  - User Guide:
+      - Getting Started: guide/getting-started.md
+      - Supported Estimators: guide/supported-estimators.md
+      - Tree Model Formats: guide/tree-formats.md
+      - API Reference: guide/api.md
+  - Contributing: contributing.md
+
+markdown_extensions:
+  - admonition
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - tables
+  - toc:
+      permalink: true
+
+extra_css:
+  - stylesheets/extra.css
+
+copyright: Made with ♥ by <a href="https://gigaton.co">Gigaton</a>
+
+plugins:
+  - search
