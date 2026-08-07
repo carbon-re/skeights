@@ -12,7 +12,6 @@ from skeights._handler import EstimatorHandler
 
 
 class TTRHandler(EstimatorHandler):
-
     def handles(self, estimator: BaseEstimator) -> bool:
         return isinstance(estimator, TransformedTargetRegressor)
 

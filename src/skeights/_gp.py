@@ -43,7 +43,6 @@ def _restore_base_estimator_arrays(
 
 
 class GPHandler(EstimatorHandler):
-
     def handles(self, estimator: BaseEstimator) -> bool:
         return isinstance(
             estimator, (GaussianProcessRegressor, GaussianProcessClassifier)
@@ -182,6 +181,4 @@ class GPHandler(EstimatorHandler):
                     copy_X_train=estimator.copy_X_train,
                     random_state=estimator.random_state,
                 )
-            _restore_base_estimator_arrays(
-                estimator.base_estimator_, arrays, be_prefix
-            )
+            _restore_base_estimator_arrays(estimator.base_estimator_, arrays, be_prefix)

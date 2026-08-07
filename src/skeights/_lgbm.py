@@ -322,7 +322,6 @@ def _rebuild_model_string(
 
 
 class LGBMHandler(EstimatorHandler):
-
     def handles(self, estimator: BaseEstimator) -> bool:
         return _is_lgbm(estimator)
 
@@ -369,9 +368,7 @@ class LGBMHandler(EstimatorHandler):
     ) -> None:
         import lightgbm as lgb
 
-        fmt = fitted_state.get(f"{prefix}__format__", {}).get(
-            "format", "native-text"
-        )
+        fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-text")
 
         if fmt != "columnar-tensors":
             model_str = fitted_state[f"{prefix}model_str"]
@@ -427,9 +424,7 @@ class LGBMHandler(EstimatorHandler):
         if fitted_state is None:
             return
 
-        fmt = fitted_state.get(f"{prefix}__format__", {}).get(
-            "format", "native-text"
-        )
+        fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-text")
         if fmt != "columnar-tensors":
             return
 

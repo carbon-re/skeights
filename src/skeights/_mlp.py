@@ -25,7 +25,6 @@ MLP_FITTED_STATE_ATTRS = (
 
 
 class MLPHandler(EstimatorHandler):
-
     def handles(self, estimator: BaseEstimator) -> bool:
         return isinstance(estimator, (MLPRegressor, MLPClassifier))
 

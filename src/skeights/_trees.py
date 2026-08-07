@@ -290,7 +290,6 @@ def _restore_tree_ensemble(
 
 
 class TreeHandler(EstimatorHandler):
-
     def handles(self, estimator: BaseEstimator) -> bool:
         return isinstance(
             estimator,

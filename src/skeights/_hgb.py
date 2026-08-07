@@ -15,7 +15,6 @@ from skeights._handler import EstimatorHandler
 
 
 class HGBHandler(EstimatorHandler):
-
     def handles(self, estimator: BaseEstimator) -> bool:
         return isinstance(
             estimator,
@@ -177,8 +176,7 @@ class HGBHandler(EstimatorHandler):
         bm.known_categories = None  # type: ignore[attr-defined]
         n_features: int = fitted_state[f"{prefix}_bin_mapper/n_features_"]
         bm.bin_thresholds_ = [
-            arrays[f"{prefix}_bin_mapper/bin_thresholds_{k}"]
-            for k in range(n_features)
+            arrays[f"{prefix}_bin_mapper/bin_thresholds_{k}"] for k in range(n_features)
         ]
         bm.is_categorical_ = arrays[f"{prefix}_bin_mapper/is_categorical_"]
         bm.n_bins_non_missing_ = arrays[f"{prefix}_bin_mapper/n_bins_non_missing_"]

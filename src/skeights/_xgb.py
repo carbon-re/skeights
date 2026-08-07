@@ -192,7 +192,6 @@ def _rebuild_model_json(
 
 
 class XGBHandler(EstimatorHandler):
-
     def handles(self, estimator: BaseEstimator) -> bool:
         return _is_xgb(estimator)
 
@@ -232,9 +231,7 @@ class XGBHandler(EstimatorHandler):
     ) -> None:
         import xgboost as xgb
 
-        fmt = fitted_state.get(f"{prefix}__format__", {}).get(
-            "format", "native-json"
-        )
+        fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-json")
 
         if fmt != "columnar-tensors":
             model_json = fitted_state[f"{prefix}model_json"]
@@ -273,9 +270,7 @@ class XGBHandler(EstimatorHandler):
         if fitted_state is None:
             return
 
-        fmt = fitted_state.get(f"{prefix}__format__", {}).get(
-            "format", "native-json"
-        )
+        fmt = fitted_state.get(f"{prefix}__format__", {}).get("format", "native-json")
         if fmt != "columnar-tensors":
             return
 
