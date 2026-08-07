@@ -26,7 +26,7 @@ theme:
     - navigation.sections
     - navigation.expand
   logo: logo.png
-  favicon: logo.png
+  favicon: favicon.png
 
 nav:
   - Home:
