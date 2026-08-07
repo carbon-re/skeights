@@ -1,23 +1,12 @@
 # API Reference
 
-## Core functions
-
-| Function | Description |
-|---|---|
-| `save(estimator, arrays_path, state_path, format=None)` | Serialize to safetensors + JSON files |
-| `load(arrays_path, state_path)` | Load from files, return fitted estimator |
-| `serialize(estimator, format=None)` | Return `(state_dict, arrays_dict)` in memory |
-| `deserialize(state, arrays)` | Reconstruct estimator from dicts |
-| `get_model_params(estimator)` | Recursively extract hyperparameters |
-| `set_model_params(estimator, params)` | Recursively set hyperparameters |
-
 ## `save`
 
 ```python
 def save(
     estimator: BaseEstimator,
-    arrays_path: str,
-    state_path: str,
+    arrays_path: str | Path,
+    state_path: str | Path,
     format: str | None = None,
 ) -> None: ...
 ```
@@ -32,8 +21,8 @@ Serialize a fitted estimator to a pair of files:
 
 ```python
 def load(
-    arrays_path: str,
-    state_path: str,
+    arrays_path: str | Path,
+    state_path: str | Path,
 ) -> BaseEstimator: ...
 ```
 
@@ -49,7 +38,7 @@ The returned estimator is ready for inference or further training.
 def serialize(
     estimator: BaseEstimator,
     format: str | None = None,
-) -> tuple[dict, dict]: ...
+) -> tuple[dict[str, Any], dict[str, np.ndarray]]: ...
 ```
 
 Like `save`, but returns `(state_dict, arrays_dict)` in memory instead of writing to files.
@@ -58,8 +47,8 @@ Like `save`, but returns `(state_dict, arrays_dict)` in memory instead of writin
 
 ```python
 def deserialize(
-    state: dict,
-    arrays: dict,
+    state: dict[str, Any],
+    arrays: dict[str, np.ndarray],
 ) -> BaseEstimator: ...
 ```
 
@@ -70,7 +59,7 @@ Reconstruct a fitted estimator from the dicts returned by `serialize`.
 ```python
 def get_model_params(
     estimator: BaseEstimator,
-) -> dict: ...
+) -> dict[str, Any]: ...
 ```
 
 Recursively extract hyperparameters from an estimator. For composite
@@ -93,8 +82,8 @@ the keys `"scaler"` and `"model"` match the step names from the pipeline:
 ```python
 def set_model_params(
     estimator: BaseEstimator,
-    params: dict,
-) -> None
+    params: dict[str, Any],
+) -> BaseEstimator: ...
 ```
 
 Set hyperparameters on an estimator using the same nested structure
