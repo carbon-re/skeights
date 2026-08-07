@@ -1,6 +1,6 @@
 # Supported Estimators
 
-## Supported
+## Currently supported
 
 | Category | Estimators |
 |---|---|

@@ -25,5 +25,5 @@ pipelines, XGBoost, or LightGBM, which skeights does.
 
 !!! note
     The feature descriptions of skops and sklearn-migrator
-    above reflect their state as of mid-2026. Check their current
-    docs for the latest.
+    above reflect their state at the time of writing. Check their
+    current docs for the latest.

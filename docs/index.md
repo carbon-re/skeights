@@ -31,7 +31,7 @@ weight payload is readable outside Python and outside skeights.
 Loading safetensors does not execute arbitrary code.
 
 !!! note
-    skeights does not use pickle or joblib. The JSON state file names
+    skeights does not use pickle or joblib. The JSON state file specifies
     the Python classes to instantiate (e.g. `sklearn.linear_model.Ridge`),
     but the loader only allows imports from `sklearn`, `lightgbm`, and
     `xgboost`. Arbitrary module imports from crafted JSON files are blocked.

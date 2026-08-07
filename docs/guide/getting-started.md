@@ -21,11 +21,10 @@ XGBoost >= 2.1 (optional). CI tests against scikit-learn 1.5,
 1.6, and latest; LightGBM 4.4 and latest; XGBoost 2.1 and
 latest.
 
-Saved models are forward-compatible on a best-effort basis: we
-test loading fixtures saved on older library versions with newer
-ones, but don't guarantee cross-version compatibility. skeights
-will emit a warning when loading a model saved with a different
-library version.
+Models saved with older versions of skeights can generally be loaded
+by newer versions, but cross-version compatibility is not guaranteed.
+skeights will emit a warning when loading a model saved with a
+different library version.
 
 ## Save and load
 
