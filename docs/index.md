@@ -8,7 +8,7 @@ Serialize fitted scikit-learn models to [safetensors](https://github.com/hugging
 
 No pickle. No joblib. Just weights and config.
 
-## Why?
+## The problem with pickle
 
 Pickle is the default way to save sklearn models, but it's insecure
 (arbitrary code execution on load), fragile (breaks across versions),
