@@ -69,7 +69,19 @@ skeights.get_model_params(
 ) -> dict
 ```
 
-Recursively extract hyperparameters from an estimator (including pipeline steps).
+Recursively extract hyperparameters from an estimator. For composite
+models like `Pipeline` or `TransformedTargetRegressor`, it traverses
+the model hierarchy and returns a nested dict where each sub-model's
+parameters are grouped under its step name.
+
+For example, a pipeline returns:
+
+```python
+{"steps": {
+    "scaler": {"with_mean": True, "type": "sklearn.preprocessing.StandardScaler", ...},
+    "model":  {"alpha": 0.1, "type": "sklearn.linear_model.Ridge", ...}
+}, ...}
+```
 
 ## `set_model_params`
 
@@ -80,4 +92,11 @@ skeights.set_model_params(
 ) -> None
 ```
 
-Recursively set hyperparameters on an estimator.
+Set hyperparameters on an estimator using the same nested structure
+returned by `get_model_params`. For composite models, it traverses
+the hierarchy and applies parameters to each sub-model. You only
+need to include the parameters you want to change.
+
+```python
+skeights.set_model_params(pipe, {"steps": {"model": {"alpha": 0.5}}})
+```
