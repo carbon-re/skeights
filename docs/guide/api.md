@@ -94,3 +94,24 @@ need to include the parameters you want to change.
 ```python
 skeights.set_model_params(pipe, {"steps": {"model": {"alpha": 0.5}}})
 ```
+
+## `get_sklearn_public_path`
+
+```python
+def get_sklearn_public_path(
+    cls: type,
+) -> str: ...
+```
+
+Return the stable public import path for a scikit-learn class.
+sklearn places classes in private submodules (e.g.
+`sklearn.preprocessing._data.StandardScaler`) but re-exports them
+from public packages (`sklearn.preprocessing.StandardScaler`). This
+function resolves the shortest public path, falling back to the full
+private path if no public re-export exists.
+
+```python
+from sklearn.preprocessing import StandardScaler
+skeights.get_sklearn_public_path(StandardScaler)
+# "sklearn.preprocessing.StandardScaler"
+```
