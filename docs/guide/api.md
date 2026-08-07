@@ -78,7 +78,8 @@ models like `Pipeline` or `TransformedTargetRegressor`, it traverses
 the model hierarchy and returns a nested dict where each sub-model's
 parameters are grouped under its step name.
 
-For example, a pipeline returns:
+For example, given `Pipeline([("scaler", StandardScaler()), ("model", Ridge())])`,
+the keys `"scaler"` and `"model"` match the step names from the pipeline:
 
 ```python
 {"steps": {
