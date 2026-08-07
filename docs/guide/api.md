@@ -103,7 +103,8 @@ def get_sklearn_public_path(
 ) -> str: ...
 ```
 
-Return the stable public import path for a scikit-learn class.
+Return the stable public import path for a scikit-learn class. Mostly
+useful internally when developing handlers, but exposed for external use.
 sklearn places classes in private submodules (e.g.
 `sklearn.preprocessing._data.StandardScaler`) but re-exports them
 from public packages (`sklearn.preprocessing.StandardScaler`). This
